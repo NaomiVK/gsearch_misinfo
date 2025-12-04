@@ -44,3 +44,9 @@ Thumbs.db
 .github/instructions/nx.instructions.md
 
 .angular
+
+# Secrets and credentials
+service-account-credentials.json
+
+# Project-specific
+CLAUDE.md

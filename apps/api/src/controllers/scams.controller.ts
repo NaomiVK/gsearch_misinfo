@@ -35,7 +35,7 @@ export class ScamsController {
     }
 
     this.logger.log(
-      `Running scam detection for ${dateRange.startDate} to ${dateRange.endDate}`
+      \`Running scam detection for \${dateRange.startDate} to \${dateRange.endDate}\`
     );
 
     const result = await this.scamDetectionService.detectScams(dateRange);
@@ -126,34 +126,31 @@ export class ScamsController {
 
     const detection = await this.scamDetectionService.detectScams(dateRange);
 
-    // Calculate additional dashboard metrics
-    const totalSuspiciousImpressions = detection.flaggedTerms.reduce(
-      (sum, t) => sum + t.impressions,
-      0
-    );
+    // Get critical alerts (critical severity terms)
+    const criticalAlerts = detection.flaggedTerms
+      .filter((t) => t.severity === 'critical')
+      .slice(0, 10);
 
-    const avgPosition =
-      detection.flaggedTerms.length > 0
-        ? detection.flaggedTerms.reduce((sum, t) => sum + t.position, 0) /
-          detection.flaggedTerms.length
-        : 0;
+    // Get new terms (status === 'new')
+    const newTerms = detection.flaggedTerms
+      .filter((t) => t.status === 'new')
+      .slice(0, 10);
+
+    // Get trending terms (highest impressions for now)
+    const trendingTerms = [...detection.flaggedTerms]
+      .sort((a, b) => b.impressions - a.impressions)
+      .slice(0, 10);
 
     return {
       success: true,
       data: {
+        summary: detection.summary,
+        flaggedTerms: detection.flaggedTerms,
+        criticalAlerts,
+        newTerms,
+        trendingTerms,
+        totalQueriesAnalyzed: detection.totalQueriesAnalyzed,
         period: dateRange,
-        flaggedTermsCount: detection.summary.total,
-        newTermsCount: detection.flaggedTerms.filter((t) => t.status === 'new')
-          .length,
-        totalSuspiciousImpressions,
-        averagePosition: avgPosition,
-        severityBreakdown: {
-          critical: detection.summary.critical,
-          high: detection.summary.high,
-          medium: detection.summary.medium,
-          low: detection.summary.low,
-        },
-        topFlaggedTerms: detection.flaggedTerms.slice(0, 10),
       },
     };
   }
