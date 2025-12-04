@@ -1,0 +1,348 @@
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <h1 class="h3 mb-0">CRA Scam Detection Dashboard</h1>
+      <p class="text-muted">Monitor potential scam-related searches targeting CRA pages</p>
+    </div>
+    <div class="col-auto">
+      <div class="btn-group">
+        <button class="btn btn-outline-secondary" (click)="onQuickDateRange(7)">7 Days</button>
+        <button class="btn btn-outline-secondary" (click)="onQuickDateRange(14)">14 Days</button>
+        <button class="btn btn-outline-secondary" (click)="onQuickDateRange(28)">28 Days</button>
+        <button class="btn btn-outline-secondary" (click)="onQuickDateRange(90)">90 Days</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2 text-muted">Loading dashboard data...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error()) {
+    <div class="alert alert-danger" role="alert">
+      <strong>Error:</strong> {{ error() }}
+      <button class="btn btn-link" (click)="loadDashboard()">Retry</button>
+    </div>
+  }
+
+  <!-- Dashboard Content -->
+  @if (!loading() && !error() && dashboardData()) {
+    <!-- KPI Cards -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="card kpi-card border-danger">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="kpi-value text-danger">{{ dashboardData()!.summary.critical }}</div>
+                <div class="kpi-label">Critical Alerts</div>
+              </div>
+              <i class="bi bi-exclamation-octagon-fill text-danger fs-2"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card kpi-card border-warning">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="kpi-value text-warning">{{ dashboardData()!.summary.high }}</div>
+                <div class="kpi-label">High Priority</div>
+              </div>
+              <i class="bi bi-exclamation-triangle-fill text-warning fs-2"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card kpi-card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="kpi-value">{{ dashboardData()!.summary.total }}</div>
+                <div class="kpi-label">Total Flagged</div>
+              </div>
+              <i class="bi bi-flag-fill text-secondary fs-2"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card kpi-card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="kpi-value">{{ dashboardData()!.totalQueriesAnalyzed | number }}</div>
+                <div class="kpi-label">Queries Analyzed</div>
+              </div>
+              <i class="bi bi-search text-primary fs-2"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row">
+      <!-- Critical Alerts Panel -->
+      <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+          <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-exclamation-octagon me-2"></i>
+              Critical Alerts
+            </h5>
+          </div>
+          <div class="card-body alert-panel p-0">
+            @for (term of dashboardData()!.criticalAlerts; track term.query) {
+              <div class="alert-item">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <strong>{{ term.query }}</strong>
+                    <div class="small text-muted">
+                      {{ term.matchedPatterns.join(', ') }}
+                    </div>
+                  </div>
+                  <span class="badge bg-danger">{{ term.impressions | number }} imp</span>
+                </div>
+              </div>
+            } @empty {
+              <div class="p-3 text-center text-muted">
+                <i class="bi bi-check-circle fs-1"></i>
+                <p class="mt-2 mb-0">No critical alerts</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- New Terms Panel -->
+      <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-plus-circle me-2"></i>
+              New Terms Detected
+            </h5>
+          </div>
+          <div class="card-body alert-panel p-0">
+            @for (term of dashboardData()!.newTerms; track term.query) {
+              <div class="alert-item">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <strong>{{ term.query }}</strong>
+                    <span class="badge ms-2" [ngClass]="getSeverityClass(term.severity)">
+                      {{ term.severity }}
+                    </span>
+                  </div>
+                  <span class="badge bg-secondary">{{ term.impressions | number }} imp</span>
+                </div>
+                <div class="small text-muted">{{ term.matchedCategory }}</div>
+              </div>
+            } @empty {
+              <div class="p-3 text-center text-muted">
+                <i class="bi bi-inbox fs-1"></i>
+                <p class="mt-2 mb-0">No new terms detected</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Trending Terms Panel -->
+      <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+          <div class="card-header bg-warning">
+            <h5 class="mb-0">
+              <i class="bi bi-graph-up me-2"></i>
+              Trending Terms
+            </h5>
+          </div>
+          <div class="card-body alert-panel p-0">
+            @for (term of dashboardData()!.trendingTerms; track term.query) {
+              <div class="alert-item">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <strong>{{ term.query }}</strong>
+                    <span class="badge ms-2" [ngClass]="getSeverityClass(term.severity)">
+                      {{ term.severity }}
+                    </span>
+                  </div>
+                  <div class="text-end">
+                    <span class="badge bg-success">+{{ term.impressions | number }}</span>
+                  </div>
+                </div>
+              </div>
+            } @empty {
+              <div class="p-3 text-center text-muted">
+                <i class="bi bi-graph-down fs-1"></i>
+                <p class="mt-2 mb-0">No trending terms</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters and Export -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-md-4">
+            <div class="input-group">
+              <span class="input-group-text">
+                <i class="bi bi-search"></i>
+              </span>
+              <input
+                type="text"
+                class="form-control"
+                placeholder="Search terms..."
+                [ngModel]="searchQuery()"
+                (ngModelChange)="onSearchChange($event)"
+              />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <select class="form-select" [ngModel]="severityFilter()" (ngModelChange)="onSeverityFilter($event)">
+              <option value="all">All Severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <select class="form-select" [ngModel]="statusFilter()" (ngModelChange)="onStatusFilter($event)">
+              <option value="all">All Status</option>
+              <option value="new">New</option>
+              <option value="active">Active</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="dismissed">Dismissed</option>
+            </select>
+          </div>
+          <div class="col-md-4 text-end">
+            <div class="btn-group">
+              <button class="btn btn-outline-primary" (click)="exportCsv()">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> CSV
+              </button>
+              <button class="btn btn-outline-primary" (click)="exportExcel()">
+                <i class="bi bi-file-earmark-excel me-1"></i> Excel
+              </button>
+            </div>
+            <button class="btn btn-outline-secondary ms-2" (click)="loadDashboard()">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flagged Terms Table -->
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">
+          Flagged Terms
+          <span class="badge bg-secondary ms-2">{{ filteredTerms().length }}</span>
+        </h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover data-table mb-0">
+          <thead>
+            <tr>
+              <th (click)="onSort('query')" [class.sorted]="sortField() === 'query'">
+                Query
+                <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-up'"></i>
+              </th>
+              <th (click)="onSort('severity')" [class.sorted]="sortField() === 'severity'">
+                Severity
+                <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-down' : 'bi-sort-up'"></i>
+              </th>
+              <th>Category</th>
+              <th (click)="onSort('impressions')" [class.sorted]="sortField() === 'impressions'">
+                Impressions
+                <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-up'"></i>
+              </th>
+              <th (click)="onSort('clicks')" [class.sorted]="sortField() === 'clicks'">
+                Clicks
+                <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-up'"></i>
+              </th>
+              <th (click)="onSort('ctr')" [class.sorted]="sortField() === 'ctr'">
+                CTR
+                <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-up'"></i>
+              </th>
+              <th (click)="onSort('position')" [class.sorted]="sortField() === 'position'">
+                Position
+                <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-up'"></i>
+              </th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (term of paginatedTerms(); track term.query) {
+              <tr>
+                <td>
+                  <strong>{{ term.query }}</strong>
+                  <div class="small text-muted">{{ term.matchedPatterns.join(', ') }}</div>
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="getSeverityClass(term.severity)">
+                    {{ term.severity }}
+                  </span>
+                </td>
+                <td>{{ term.matchedCategory }}</td>
+                <td>{{ term.impressions | number }}</td>
+                <td>{{ term.clicks | number }}</td>
+                <td>{{ (term.ctr * 100).toFixed(2) }}%</td>
+                <td>{{ term.position.toFixed(1) }}</td>
+                <td>
+                  <span class="badge" [ngClass]="{
+                    'bg-success': term.status === 'new',
+                    'bg-primary': term.status === 'active',
+                    'bg-secondary': term.status === 'reviewed',
+                    'bg-dark': term.status === 'dismissed'
+                  }">
+                    {{ term.status }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="text-center py-4 text-muted">
+                  No flagged terms found matching your filters.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (filteredTerms().length > pageSize()) {
+        <div class="card-footer">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted">
+              Showing {{ (page() - 1) * pageSize() + 1 }} to
+              {{ Math.min(page() * pageSize(), filteredTerms().length) }}
+              of {{ filteredTerms().length }} entries
+            </div>
+            <ngb-pagination
+              [collectionSize]="filteredTerms().length"
+              [(page)]="page"
+              [pageSize]="pageSize()"
+              [maxSize]="5"
+              [rotate]="true"
+              [boundaryLinks]="true"
+            />
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

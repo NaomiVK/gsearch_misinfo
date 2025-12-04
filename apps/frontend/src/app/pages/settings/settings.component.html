@@ -1,0 +1,205 @@
+<div class="container-fluid py-4">
+  <div class="row mb-4">
+    <div class="col">
+      <h1 class="h3 mb-0">Settings</h1>
+      <p class="text-muted">Configure scam detection keywords and preferences</p>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-success" (click)="exportConfig()">
+        <i class="bi bi-download me-1"></i>
+        Export Configuration
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <ul ngbNav #nav="ngbNav" [(activeId)]="activeTab" class="nav-tabs">
+    <li [ngbNavItem]="1">
+      <button ngbNavLink>Scam Keywords</button>
+      <ng-template ngbNavContent>
+        <!-- Add New Term -->
+        <div class="card mb-4 mt-3">
+          <div class="card-body">
+            <h5 class="card-title">Add New Term</h5>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <select
+                  class="form-select"
+                  [ngModel]="selectedCategory()"
+                  (ngModelChange)="selectedCategory.set($event)"
+                >
+                  @for (cat of categories(); track cat.name) {
+                    <option [value]="cat.name">{{ cat.displayName }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-md-6">
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="Enter new term..."
+                  [ngModel]="newTerm()"
+                  (ngModelChange)="newTerm.set($event)"
+                  (keyup.enter)="addTerm()"
+                />
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-primary w-100" (click)="addTerm()">
+                  <i class="bi bi-plus-lg"></i> Add
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Categories Accordion -->
+        <div ngbAccordion>
+          @for (category of categories(); track category.name) {
+            <div ngbAccordionItem [collapsed]="false">
+              <h2 ngbAccordionHeader>
+                <button ngbAccordionButton>
+                  <span class="badge me-2" [ngClass]="'bg-' + getSeverityClass(category.severity)">
+                    {{ category.severity }}
+                  </span>
+                  {{ category.displayName }}
+                  <span class="badge bg-secondary ms-2">{{ category.terms.length }} terms</span>
+                </button>
+              </h2>
+              <div ngbAccordionCollapse>
+                <div ngbAccordionBody>
+                  <ng-template>
+                    @if (category.mustContain) {
+                      <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Context Required:</strong> Terms must appear with:
+                        {{ category.mustContain.join(', ') }}
+                      </div>
+                    }
+                    <div class="d-flex flex-wrap gap-2">
+                      @for (term of category.terms; track term) {
+                        <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
+                          {{ term }}
+                          <button
+                            type="button"
+                            class="btn-close btn-close-sm"
+                            aria-label="Remove"
+                            (click)="removeTerm(category.name, term)"
+                          ></button>
+                        </span>
+                      }
+                    </div>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </ng-template>
+    </li>
+
+    <li [ngbNavItem]="2">
+      <button ngbNavLink>Whitelist</button>
+      <ng-template ngbNavContent>
+        <div class="card mt-3">
+          <div class="card-body">
+            <h5 class="card-title">Whitelisted Terms</h5>
+            <p class="text-muted">
+              These terms will never be flagged as potential scams, even if they match other patterns.
+            </p>
+
+            <!-- Add Whitelist Term -->
+            <div class="row g-3 mb-4">
+              <div class="col-md-10">
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="Enter term to whitelist..."
+                  [ngModel]="newWhitelistTerm()"
+                  (ngModelChange)="newWhitelistTerm.set($event)"
+                  (keyup.enter)="addWhitelistTerm()"
+                />
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-success w-100" (click)="addWhitelistTerm()">
+                  <i class="bi bi-plus-lg"></i> Add
+                </button>
+              </div>
+            </div>
+
+            <!-- Whitelist Terms -->
+            <div class="d-flex flex-wrap gap-2">
+              @for (term of whitelist(); track term) {
+                <span class="badge bg-success d-flex align-items-center gap-1">
+                  <i class="bi bi-check-circle me-1"></i>
+                  {{ term }}
+                  <button
+                    type="button"
+                    class="btn-close btn-close-white btn-close-sm"
+                    aria-label="Remove"
+                    (click)="removeWhitelistTerm(term)"
+                  ></button>
+                </span>
+              } @empty {
+                <p class="text-muted">No whitelisted terms</p>
+              }
+            </div>
+          </div>
+        </div>
+      </ng-template>
+    </li>
+
+    <li [ngbNavItem]="3">
+      <button ngbNavLink>About</button>
+      <ng-template ngbNavContent>
+        <div class="card mt-3">
+          <div class="card-body">
+            <h5 class="card-title">CRA Scam Detection Dashboard</h5>
+            <p>
+              This application monitors Google Search Console data for potential scam-related
+              searches targeting Canada Revenue Agency (CRA) pages on canada.ca.
+            </p>
+
+            <h6 class="mt-4">How It Works</h6>
+            <ul>
+              <li>Fetches search query data from Google Search Console API</li>
+              <li>Filters for CRA-related URLs on canada.ca</li>
+              <li>Matches queries against configurable scam keyword patterns</li>
+              <li>Applies contextual matching (CRA + scam method combinations)</li>
+              <li>Flags terms exceeding the impression threshold</li>
+              <li>Tracks changes over time for trend analysis</li>
+            </ul>
+
+            <h6 class="mt-4">Detection Categories</h6>
+            <ul>
+              <li>
+                <span class="badge bg-danger">Critical</span>
+                Fake/expired benefits and illegitimate payment methods
+              </li>
+              <li>
+                <span class="badge bg-warning text-dark">High</span>
+                Threat language and urgency tactics
+              </li>
+              <li>
+                <span class="badge bg-info">Medium</span>
+                Suspicious modifiers and vague promises
+              </li>
+              <li>
+                <span class="badge bg-secondary">Low</span>
+                General suspicious patterns
+              </li>
+            </ul>
+
+            <h6 class="mt-4">Configuration</h6>
+            <p>
+              Keywords can be configured in the <code>scam-keywords.json</code> file
+              or through this admin panel. Changes made here can be exported and
+              applied to the server configuration.
+            </p>
+          </div>
+        </div>
+      </ng-template>
+    </li>
+  </ul>
+
+  <div [ngbNavOutlet]="nav"></div>
+</div>

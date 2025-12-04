@@ -1,13 +1,16 @@
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router';
-import { NxWelcome } from './nx-welcome';
+import { CommonModule } from '@angular/common';
+import { RouterModule, RouterLink, RouterLinkActive } from '@angular/router';
+import { NgbCollapseModule } from '@ng-bootstrap/ng-bootstrap';
 
 @Component({
-  imports: [NxWelcome, RouterModule],
   selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule, RouterModule, RouterLink, RouterLinkActive, NgbCollapseModule],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
 export class App {
-  protected title = 'frontend';
+  protected title = 'CRA Scam Detection';
+  protected isNavCollapsed = true;
 }

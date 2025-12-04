@@ -1,0 +1,189 @@
+<div class="container-fluid py-4">
+  <div class="row mb-4">
+    <div class="col">
+      <h1 class="h3 mb-0">Period Comparison</h1>
+      <p class="text-muted">Compare scam detection metrics between time periods</p>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary" (click)="loadWeekOverWeek()">
+        <i class="bi bi-arrow-repeat me-1"></i>
+        Week Over Week
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2 text-muted">Loading comparison data...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error()) {
+    <div class="alert alert-danger" role="alert">
+      <strong>Error:</strong> {{ error() }}
+      <button class="btn btn-link" (click)="loadWeekOverWeek()">Retry</button>
+    </div>
+  }
+
+  <!-- Comparison Content -->
+  @if (!loading() && !error() && comparisonData()) {
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Total Flagged Terms</h5>
+            <div class="d-flex align-items-baseline">
+              <span class="display-5">{{ comparisonData()!.period1.totalFlagged }}</span>
+              <span class="ms-2" [ngClass]="getChangeClass(comparisonData()!.changes.totalFlaggedChange)">
+                <i class="bi" [ngClass]="getChangeIcon(comparisonData()!.changes.totalFlaggedChange)"></i>
+                {{ formatChange(comparisonData()!.changes.totalFlaggedChange) }}
+              </span>
+            </div>
+            <small class="text-muted">vs {{ comparisonData()!.period2.totalFlagged }} previous</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Critical Alerts</h5>
+            <div class="d-flex align-items-baseline">
+              <span class="display-5 text-danger">{{ comparisonData()!.period1.criticalCount }}</span>
+              <span class="ms-2" [ngClass]="getChangeClass(comparisonData()!.changes.criticalChange)">
+                <i class="bi" [ngClass]="getChangeIcon(comparisonData()!.changes.criticalChange)"></i>
+                {{ formatChange(comparisonData()!.changes.criticalChange) }}
+              </span>
+            </div>
+            <small class="text-muted">vs {{ comparisonData()!.period2.criticalCount }} previous</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Total Impressions</h5>
+            <div class="d-flex align-items-baseline">
+              <span class="display-5">{{ comparisonData()!.period1.totalImpressions | number }}</span>
+              <span class="ms-2" [ngClass]="getChangeClass(comparisonData()!.changes.impressionsChange)">
+                <i class="bi" [ngClass]="getChangeIcon(comparisonData()!.changes.impressionsChange)"></i>
+                {{ formatChange(comparisonData()!.changes.impressionsChange) }}
+              </span>
+            </div>
+            <small class="text-muted">vs {{ comparisonData()!.period2.totalImpressions | number }} previous</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New Terms Section -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-plus-circle me-2"></i>
+              New Terms This Period ({{ comparisonData()!.newTerms.length }})
+            </h5>
+          </div>
+          <div class="card-body scrollable">
+            @for (term of comparisonData()!.newTerms; track term.query) {
+              <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                <div>
+                  <strong>{{ term.query }}</strong>
+                  <span class="badge ms-2" [ngClass]="{
+                    'bg-danger': term.severity === 'critical',
+                    'bg-warning': term.severity === 'high',
+                    'bg-info': term.severity === 'medium',
+                    'bg-secondary': term.severity === 'low'
+                  }">{{ term.severity }}</span>
+                </div>
+                <span class="badge bg-primary">{{ term.impressions | number }} imp</span>
+              </div>
+            } @empty {
+              <p class="text-muted text-center mb-0">No new terms detected</p>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-dash-circle me-2"></i>
+              Removed Terms ({{ comparisonData()!.removedTerms.length }})
+            </h5>
+          </div>
+          <div class="card-body scrollable">
+            @for (term of comparisonData()!.removedTerms; track term.query) {
+              <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                <div>
+                  <strong class="text-muted">{{ term.query }}</strong>
+                </div>
+                <span class="badge bg-secondary">was {{ term.impressions | number }} imp</span>
+              </div>
+            } @empty {
+              <p class="text-muted text-center mb-0">No terms removed</p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trending Terms -->
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi bi-graph-up me-2"></i>
+          Terms with Significant Changes
+        </h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Query</th>
+              <th>Severity</th>
+              <th>Current Impressions</th>
+              <th>Previous Impressions</th>
+              <th>Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (term of comparisonData()!.trendingTerms; track term.query) {
+              <tr>
+                <td><strong>{{ term.query }}</strong></td>
+                <td>
+                  <span class="badge" [ngClass]="{
+                    'bg-danger': term.severity === 'critical',
+                    'bg-warning': term.severity === 'high',
+                    'bg-info': term.severity === 'medium',
+                    'bg-secondary': term.severity === 'low'
+                  }">{{ term.severity }}</span>
+                </td>
+                <td>{{ term.currentImpressions | number }}</td>
+                <td>{{ term.previousImpressions | number }}</td>
+                <td [ngClass]="getChangeClass(term.changePercent)">
+                  <i class="bi" [ngClass]="getChangeIcon(term.changePercent)"></i>
+                  {{ formatChange(term.changePercent) }}
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  No significant changes detected
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
