@@ -104,7 +104,10 @@ export class CacheService {
 
     this.logger.debug(`Cache miss for key: ${key}, fetching...`);
     const value = await fetchFn();
-    this.set(key, value, ttlSeconds);
+    // Don't cache null/undefined values - they likely represent failures
+    if (value !== null && value !== undefined) {
+      this.set(key, value, ttlSeconds);
+    }
     return value;
   }
 }

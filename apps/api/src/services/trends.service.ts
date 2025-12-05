@@ -6,6 +6,7 @@ import {
   InterestOverTime,
   TrendExploration,
   TrendsPanelData,
+  TrendsResult,
 } from '@cra-scam-detection/shared-types';
 import { environment } from '../environments/environment';
 
@@ -22,6 +23,46 @@ export class TrendsService {
   ) {}
 
   /**
+   * Convert time range string to startTime/endTime Date objects
+   */
+  private getTimeRangeDates(timeRange: string): { startTime: Date; endTime: Date } {
+    const endTime = new Date();
+    let startTime = new Date();
+
+    switch (timeRange) {
+      case 'now 1-H':
+        startTime.setHours(startTime.getHours() - 1);
+        break;
+      case 'now 4-H':
+        startTime.setHours(startTime.getHours() - 4);
+        break;
+      case 'now 1-d':
+        startTime.setDate(startTime.getDate() - 1);
+        break;
+      case 'now 7-d':
+        startTime.setDate(startTime.getDate() - 7);
+        break;
+      case 'today 1-m':
+        startTime.setMonth(startTime.getMonth() - 1);
+        break;
+      case 'today 3-m':
+        startTime.setMonth(startTime.getMonth() - 3);
+        break;
+      case 'today 12-m':
+        startTime.setFullYear(startTime.getFullYear() - 1);
+        break;
+      case 'today 5-y':
+        startTime.setFullYear(startTime.getFullYear() - 5);
+        break;
+      default:
+        // Default to 3 months
+        startTime.setMonth(startTime.getMonth() - 3);
+    }
+
+    return { startTime, endTime };
+  }
+
+  /**
    * Get interest over time for a keyword
    */
   async getInterestOverTime(
@@ -34,14 +75,21 @@ export class TrendsService {
       cacheKey,
       async () => {
         try {
+          const { startTime, endTime } = this.getTimeRangeDates(timeRange);
+
+          this.logger.log(`Fetching trends for "${keyword}" from ${startTime.toISOString()} to ${endTime.toISOString()} (timeRange: ${timeRange})`);
+
           const result = await googleTrends.interestOverTime({
             keyword,
             geo: 'CA',
-            time: timeRange,
+            startTime,
+            endTime,
           });
 
           const parsed = JSON.parse(result);
           const timelineData = parsed.default?.timelineData || [];
+
+          this.logger.log(`Received ${timelineData.length} data points for "${keyword}"`);
 
           const data: TrendDataPoint[] = timelineData.map(
             (point: { formattedTime: string; value: number[] }) => ({
@@ -61,8 +109,9 @@ export class TrendsService {
             averageInterest,
           };
         } catch (error) {
-          this.logger.warn(
-            `Failed to fetch trends for "${keyword}": ${error.message}`
+          this.logger.error(
+            `Failed to fetch trends for "${keyword}" (timeRange: ${timeRange}): ${error.message}`,
+            error.stack
           );
           return null;
         }
@@ -106,6 +155,81 @@ export class TrendsService {
           this.logger.warn(
             `Failed to fetch related queries for "${keyword}": ${error.message}`
           );
+          return null;
+        }
+      },
+      environment.cache.trendsTtl
+    );
+  }
+
+  /**
+   * Explore multiple keywords and return combined TrendsResult
+   */
+  async exploreKeywords(keywords: string[], timeRange = 'today 3-m'): Promise<TrendsResult | null> {
+    const cacheKey = `trends:explore-multi:${keywords.sort().join(',')}:${timeRange}`;
+
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        try {
+          const interestResults: Map<string, InterestOverTime> = new Map();
+          const relatedResults: Map<string, { rising: string[]; top: string[] }> = new Map();
+
+          // Fetch data for each keyword with rate limiting
+          for (const keyword of keywords.slice(0, 5)) { // Limit to 5 to avoid rate limits
+            const [interest, related] = await Promise.all([
+              this.getInterestOverTime(keyword, timeRange),
+              this.getRelatedQueries(keyword),
+            ]);
+
+            if (interest) {
+              interestResults.set(keyword, interest);
+            }
+            if (related) {
+              relatedResults.set(keyword, related);
+            }
+
+            // Small delay between keywords
+            await this.delay(300);
+          }
+
+          if (interestResults.size === 0) return null;
+
+          // Combine interest over time data - use the order from the first keyword's results
+          // Google Trends returns data in chronological order, so we preserve that order
+          const firstKeyword = keywords[0];
+          const firstInterest = interestResults.get(firstKeyword);
+
+          if (!firstInterest) return null;
+
+          // Use the dates from the first result in their original order (already chronological)
+          const interestOverTime = firstInterest.data.map((point) => {
+            const values: Record<string, number> = {};
+            interestResults.forEach((interest, kw) => {
+              const matchingPoint = interest.data.find((p) => p.date === point.date);
+              values[kw] = matchingPoint?.value || 0;
+            });
+            return { date: point.date, values };
+          });
+
+          // Build related queries
+          const relatedQueries = keywords.map((keyword) => {
+            const related = relatedResults.get(keyword);
+            const queries = [
+              ...(related?.rising || []).map((q) => ({ query: q, value: 0 })),
+              ...(related?.top || []).map((q) => ({ query: q, value: 0 })),
+            ].slice(0, 10);
+            return { keyword, queries };
+          });
+
+          return {
+            keywords,
+            interestOverTime,
+            relatedQueries,
+            interestByRegion: [], // Not implemented yet
+          };
+        } catch (error) {
+          this.logger.error(`Failed to explore keywords:`, error);
           return null;
         }
       },

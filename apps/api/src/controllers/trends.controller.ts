@@ -9,20 +9,32 @@ export class TrendsController {
 
   /**
    * GET /api/trends/explore
-   * Explore interest over time for a specific keyword
+   * Explore interest over time for keywords (single or comma-separated)
    */
   @Get('explore')
-  async exploreKeyword(@Query('keyword') keyword: string) {
-    if (!keyword) {
+  async exploreKeywords(
+    @Query('keyword') keyword?: string,
+    @Query('keywords') keywords?: string,
+    @Query('timeRange') timeRange?: string
+  ) {
+    // Support both 'keyword' (single) and 'keywords' (comma-separated)
+    const keywordList = keywords
+      ? keywords.split(',').map((k) => k.trim()).filter((k) => k.length > 0)
+      : keyword
+        ? [keyword.trim()]
+        : [];
+
+    if (keywordList.length === 0) {
       return {
         success: false,
-        error: 'Missing required parameter: keyword',
+        error: 'Missing required parameter: keyword or keywords',
       };
     }
 
-    this.logger.log(`Exploring trends for keyword: ${keyword}`);
+    const effectiveTimeRange = timeRange || 'today 3-m';
+    this.logger.log(`Exploring trends for keywords: ${keywordList.join(', ')} (timeRange param: "${timeRange}", effective: "${effectiveTimeRange}")`);
 
-    const result = await this.trendsService.exploreKeyword(keyword);
+    const result = await this.trendsService.exploreKeywords(keywordList, effectiveTimeRange);
 
     if (!result) {
       return {

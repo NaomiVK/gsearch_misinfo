@@ -1,134 +1,152 @@
 <div class="container-fluid py-4">
+  <!-- Header -->
   <div class="row mb-4">
     <div class="col">
-      <h1 class="h3 mb-0">Google Trends Analysis</h1>
-      <p class="text-muted">Monitor search interest for potential scam-related keywords</p>
+      <h1 class="h3 mb-1">
+        <i class="bi bi-graph-up-arrow text-primary me-2"></i>
+        Google Trends Analysis
+      </h1>
+      <p class="text-muted mb-0">Monitor search interest for potential scam-related keywords in Canada</p>
     </div>
   </div>
 
-  <!-- Custom Search -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <div class="row align-items-center">
-        <div class="col-md-8">
-          <div class="input-group">
-            <span class="input-group-text">
-              <i class="bi bi-search"></i>
+  <!-- Search Bar -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body py-3">
+      <div class="row g-3 align-items-end">
+        <div class="col-lg-6">
+          <label class="form-label small text-muted mb-1">Search term</label>
+          <div class="input-group input-group-lg">
+            <span class="input-group-text bg-white border-end-0">
+              <i class="bi bi-search text-muted"></i>
             </span>
-            <input
-              type="text"
-              class="form-control"
-              placeholder="Enter keywords separated by commas (e.g., grocery rebate, cra payment)"
-              [ngModel]="customKeywords()"
-              (ngModelChange)="customKeywords.set($event)"
-              (keyup.enter)="searchCustomKeywords()"
-            />
-            <button class="btn btn-primary" (click)="searchCustomKeywords()">
-              Search Trends
+            <input type="text" class="form-control border-start-0 ps-0"
+              placeholder="Enter a search term (e.g., cra rent relief)"
+              [ngModel]="searchTerm()"
+              (ngModelChange)="searchTerm.set($event)"
+              (keyup.enter)="searchTrends()" />
+          </div>
+        </div>
+        <div class="col-lg-3">
+          <label class="form-label small text-muted mb-1">Time period</label>
+          <select class="form-select form-select-lg"
+            [ngModel]="selectedTimePeriod()"
+            (ngModelChange)="selectedTimePeriod.set($event); onTimePeriodChange()">
+            @for (period of timePeriods; track period.value) {
+              <option [value]="period.value">{{ period.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-lg-3">
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-lg flex-grow-1" (click)="searchTrends()"
+              [disabled]="loading() || !searchTerm().trim()">
+              <i class="bi bi-search me-1"></i> Explore
+            </button>
+            <button class="btn btn-outline-secondary btn-lg" (click)="loadScamKeywordTrends()"
+              [disabled]="loading()" title="Load monitored scam keywords">
+              <i class="bi bi-shield-exclamation"></i>
             </button>
           </div>
         </div>
-        <div class="col-md-4 text-end">
-          <button class="btn btn-outline-secondary" (click)="loadScamKeywordTrends()">
-            <i class="bi bi-arrow-clockwise me-1"></i>
-            Refresh Scam Keywords
-          </button>
-        </div>
       </div>
     </div>
   </div>
 
-  <!-- Loading State -->
+  <!-- Loading -->
   @if (loading()) {
-    <div class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
+    <div class="card shadow-sm mb-4">
+      <div class="card-body text-center py-5">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+        <h5 class="text-muted">Fetching trends data from Google...</h5>
       </div>
-      <p class="mt-2 text-muted">Loading trends data from Google...</p>
     </div>
   }
 
-  <!-- Error State -->
+  <!-- Error -->
   @if (error()) {
-    <div class="alert alert-warning" role="alert">
-      <i class="bi bi-exclamation-triangle me-2"></i>
-      <strong>Note:</strong> {{ error() }}
-      <p class="mb-0 mt-2 small">
-        Google Trends data may be unavailable due to rate limiting.
-        Try again in a few minutes or use custom keywords.
-      </p>
+    <div class="alert alert-warning">
+      <strong>Error:</strong> {{ error() }}
     </div>
   }
 
-  <!-- Trends Content -->
+  <!-- Results -->
   @if (!loading() && !error() && trendsData()) {
-    <!-- Interest Over Time -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0">
+        <span class="badge bg-primary me-2">{{ currentSearchTerm() }}</span>
+        <small class="text-muted">{{ getSelectedTimePeriodLabel() }} - Canada</small>
+      </h4>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="card shadow-sm border-start border-primary border-4">
+          <div class="card-body">
+            <p class="text-muted small mb-1">Peak Interest</p>
+            <h2 class="mb-0">{{ getPeakInterest() }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card shadow-sm border-start border-info border-4">
+          <div class="card-body">
+            <p class="text-muted small mb-1">Average Interest</p>
+            <h2 class="mb-0">{{ getAverageInterest() }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card shadow-sm border-start border-success border-4">
+          <div class="card-body">
+            <p class="text-muted small mb-1">Trend Direction</p>
+            <h2 class="mb-0">
+              <i class="bi {{ getTrendDirection().icon }} {{ getTrendDirection().class }} me-2"></i>
+              <span [class]="getTrendDirection().class">{{ getTrendDirection().label }}</span>
+            </h2>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
     @if (trendsData()!.interestOverTime && trendsData()!.interestOverTime.length > 0) {
-      <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="mb-0">
-            <i class="bi bi-graph-up me-2"></i>
-            Interest Over Time
-          </h5>
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>Interest Over Time</h5>
         </div>
         <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  @for (keyword of trendsData()!.keywords; track keyword) {
-                    <th>{{ keyword }}</th>
-                  }
-                </tr>
-              </thead>
-              <tbody>
-                @for (point of trendsData()!.interestOverTime; track point.date) {
-                  <tr>
-                    <td>{{ point.date }}</td>
-                    @for (keyword of trendsData()!.keywords; track keyword) {
-                      <td>
-                        <span class="badge" [ngClass]="getInterestClass(point.values[keyword] || 0)">
-                          {{ point.values[keyword] || 0 }}
-                        </span>
-                      </td>
-                    }
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
+          <apx-chart [series]="chartOptions.series!" [chart]="chartOptions.chart!"
+            [xaxis]="chartOptions.xaxis!" [yaxis]="chartOptions.yaxis!"
+            [stroke]="chartOptions.stroke!" [fill]="chartOptions.fill!"
+            [tooltip]="chartOptions.tooltip!" [dataLabels]="chartOptions.dataLabels!"
+            [legend]="chartOptions.legend!" [grid]="chartOptions.grid!"
+            [markers]="chartOptions.markers!" [colors]="chartOptions.colors!"></apx-chart>
         </div>
       </div>
     }
 
     <!-- Related Queries -->
     @if (trendsData()!.relatedQueries && trendsData()!.relatedQueries.length > 0) {
-      <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="mb-0">
-            <i class="bi bi-link-45deg me-2"></i>
-            Related Queries
-          </h5>
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="bi bi-link-45deg me-2 text-primary"></i>Related Queries</h5>
         </div>
         <div class="card-body">
           <div class="row">
             @for (related of trendsData()!.relatedQueries; track related.keyword) {
-              <div class="col-md-4 mb-3">
-                <div class="card h-100">
-                  <div class="card-header bg-light">
-                    <strong>{{ related.keyword }}</strong>
-                  </div>
-                  <ul class="list-group list-group-flush">
-                    @for (query of related.queries.slice(0, 5); track query.query) {
-                      <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ query.query }}
-                        <span class="badge bg-primary">{{ query.value }}</span>
-                      </li>
-                    } @empty {
-                      <li class="list-group-item text-muted">No related queries</li>
-                    }
-                  </ul>
+              <div class="col-lg-6 mb-4">
+                <div class="border rounded p-3">
+                  <h6 class="text-primary mb-3">{{ related.keyword }}</h6>
+                  @for (query of related.queries.slice(0, 8); track query.query; let i = $index) {
+                    <div class="py-2 border-bottom">
+                      <span class="badge bg-light text-dark me-2">{{ i + 1 }}</span>
+                      {{ query.query }}
+                    </div>
+                  } @empty {
+                    <p class="text-muted small">No related queries</p>
+                  }
                 </div>
               </div>
             }
@@ -136,51 +154,19 @@
         </div>
       </div>
     }
+  }
 
-    <!-- Interest by Region -->
-    @if (trendsData()!.interestByRegion && trendsData()!.interestByRegion.length > 0) {
-      <div class="card">
-        <div class="card-header">
-          <h5 class="mb-0">
-            <i class="bi bi-geo-alt me-2"></i>
-            Interest by Region
-          </h5>
-        </div>
-        <div class="card-body">
-          <div class="table-responsive">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Region</th>
-                  @for (keyword of trendsData()!.keywords; track keyword) {
-                    <th>{{ keyword }}</th>
-                  }
-                </tr>
-              </thead>
-              <tbody>
-                @for (region of trendsData()!.interestByRegion; track region.geoName) {
-                  <tr>
-                    <td><strong>{{ region.geoName }}</strong></td>
-                    @for (keyword of trendsData()!.keywords; track keyword) {
-                      <td>
-                        <div class="progress" style="height: 20px;">
-                          <div
-                            class="progress-bar"
-                            [ngClass]="getInterestClass(region.values[keyword] || 0)"
-                            [style.width.%]="region.values[keyword] || 0"
-                          >
-                            {{ region.values[keyword] || 0 }}
-                          </div>
-                        </div>
-                      </td>
-                    }
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
+  <!-- Empty State -->
+  @if (!loading() && !error() && !trendsData()) {
+    <div class="card shadow-sm">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-search display-1 text-muted mb-3"></i>
+        <h4>Search for a term to get started</h4>
+        <p class="text-muted mb-4">Enter a search term above to explore Google Trends data.</p>
+        <button class="btn btn-outline-primary" (click)="loadScamKeywordTrends()">
+          <i class="bi bi-shield-exclamation me-1"></i> Load Scam Keywords
+        </button>
       </div>
-    }
+    </div>
   }
 </div>

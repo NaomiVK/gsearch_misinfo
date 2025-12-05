@@ -35,7 +35,7 @@ export class ScamsController {
     }
 
     this.logger.log(
-      \`Running scam detection for \${dateRange.startDate} to \${dateRange.endDate}\`
+      `Running scam detection for ${dateRange.startDate} to ${dateRange.endDate}`
     );
 
     const result = await this.scamDetectionService.detectScams(dateRange);

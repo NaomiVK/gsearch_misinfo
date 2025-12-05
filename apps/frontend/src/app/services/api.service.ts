@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import {
   DashboardData,
   ScamDetectionResult,
-  ComparisonResult,
+  ComparisonResponse,
   TrendsResult,
   FlaggedTerm,
   DateRange,
@@ -79,19 +79,20 @@ export class ApiService {
   }
 
   /**
-   * Get comparison data
+   * Get comparison data between two periods
+   * Backend expects: currentStart, currentEnd, previousStart, previousEnd
    */
   getComparison(
-    period1: DateRange,
-    period2: DateRange
-  ): Observable<ApiResponse<ComparisonResult>> {
+    currentPeriod: DateRange,
+    previousPeriod: DateRange
+  ): Observable<ApiResponse<ComparisonResponse>> {
     const params = new HttpParams()
-      .set('period1Start', period1.startDate)
-      .set('period1End', period1.endDate)
-      .set('period2Start', period2.startDate)
-      .set('period2End', period2.endDate);
+      .set('currentStart', currentPeriod.startDate)
+      .set('currentEnd', currentPeriod.endDate)
+      .set('previousStart', previousPeriod.startDate)
+      .set('previousEnd', previousPeriod.endDate);
 
-    return this.http.get<ApiResponse<ComparisonResult>>(
+    return this.http.get<ApiResponse<ComparisonResponse>>(
       `${this.baseUrl}/comparison/period`,
       { params }
     );
@@ -100,8 +101,8 @@ export class ApiService {
   /**
    * Get week-over-week comparison
    */
-  getWeekOverWeek(): Observable<ApiResponse<ComparisonResult>> {
-    return this.http.get<ApiResponse<ComparisonResult>>(
+  getWeekOverWeek(): Observable<ApiResponse<ComparisonResponse>> {
+    return this.http.get<ApiResponse<ComparisonResponse>>(
       `${this.baseUrl}/comparison/week-over-week`
     );
   }
@@ -109,8 +110,11 @@ export class ApiService {
   /**
    * Get trends data
    */
-  getTrends(keywords: string[]): Observable<ApiResponse<TrendsResult>> {
-    const params = new HttpParams().set('keywords', keywords.join(','));
+  getTrends(keywords: string[], timeRange?: string): Observable<ApiResponse<TrendsResult>> {
+    let params = new HttpParams().set('keywords', keywords.join(','));
+    if (timeRange) {
+      params = params.set('timeRange', timeRange);
+    }
     return this.http.get<ApiResponse<TrendsResult>>(
       `${this.baseUrl}/trends/explore`,
       { params }

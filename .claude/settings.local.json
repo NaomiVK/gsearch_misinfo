@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__basic-memory__recent_activity"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
