@@ -47,6 +47,13 @@ Thumbs.db
 
 # Secrets and credentials
 service-account-credentials.json
+.env
+.env.local
+.env.*.local
+
+# Local environment files with API keys
+**/environments/environment.local.ts
+**/environments/environment.prod.local.ts
 
 # Project-specific
 CLAUDE.md

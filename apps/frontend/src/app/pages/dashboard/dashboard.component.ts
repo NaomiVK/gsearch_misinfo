@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   NgbDatepickerModule,
   NgbDropdownModule,
@@ -12,6 +13,7 @@ import {
   DashboardData,
   DateRange,
   Severity,
+  EmergingThreatsResponse,
 } from '@cra-scam-detection/shared-types';
 
 type SortField = 'query' | 'severity' | 'impressions' | 'clicks' | 'ctr' | 'position';
@@ -23,6 +25,7 @@ type SortDirection = 'asc' | 'desc';
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     NgbDatepickerModule,
     NgbDropdownModule,
     NgbPaginationModule,
@@ -40,6 +43,7 @@ export class DashboardComponent implements OnInit {
 
   // Dashboard data
   dashboardData = signal<DashboardData | null>(null);
+  emergingThreats = signal<EmergingThreatsResponse | null>(null);
 
   // Date range
   dateRange = signal<DateRange>({
@@ -129,6 +133,18 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadDashboard();
+    this.loadEmergingThreats();
+  }
+
+  loadEmergingThreats(): void {
+    this.api.getEmergingThreats(7).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.emergingThreats.set(res.data);
+        }
+      },
+      error: (err) => console.error('Failed to load emerging threats', err),
+    });
   }
 
   async loadDashboard(): Promise<void> {

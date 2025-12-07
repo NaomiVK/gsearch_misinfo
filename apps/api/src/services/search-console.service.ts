@@ -6,6 +6,7 @@ import {
   SearchAnalyticsRow,
   SearchAnalyticsQuery,
   DateRange,
+  CTRBenchmarks,
 } from '@cra-scam-detection/shared-types';
 import * as path from 'path';
 
@@ -213,5 +214,123 @@ export class SearchConsoleService implements OnModuleInit {
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
     };
+  }
+
+  /**
+   * Calculate dynamic CTR benchmarks from actual Search Console data
+   * Uses percentile analysis of queries grouped by position ranges
+   *
+   * @param days Number of days of historical data to analyze (default 90)
+   * @param minImpressions Minimum impressions for a query to be included (default 10)
+   */
+  async calculateCTRBenchmarks(
+    days = 90,
+    minImpressions = 10
+  ): Promise<CTRBenchmarks> {
+    const cacheKey = `ctr-benchmarks:${days}:${minImpressions}`;
+
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        this.logger.log(`Calculating dynamic CTR benchmarks from ${days} days of data`);
+
+        const dateRange = SearchConsoleService.getDateRange(days);
+        const allData = await this.getAnalyticsForDateRange(dateRange);
+
+        // Filter to queries with meaningful impressions
+        const significantQueries = allData.filter(
+          (row) => row.impressions >= minImpressions
+        );
+
+        this.logger.log(
+          `Analyzing ${significantQueries.length} queries with ${minImpressions}+ impressions`
+        );
+
+        // Group queries by position ranges
+        const positionGroups: Record<string, number[]> = {
+          '1-3': [],
+          '4-8': [],
+          '9-15': [],
+          '16+': [],
+        };
+
+        for (const query of significantQueries) {
+          const position = query.position;
+          const ctr = query.ctr;
+
+          if (position <= 3) {
+            positionGroups['1-3'].push(ctr);
+          } else if (position <= 8) {
+            positionGroups['4-8'].push(ctr);
+          } else if (position <= 15) {
+            positionGroups['9-15'].push(ctr);
+          } else {
+            positionGroups['16+'].push(ctr);
+          }
+        }
+
+        // Calculate percentiles for each group
+        const calculateBenchmark = (
+          positionRange: string,
+          ctrs: number[]
+        ): { positionRange: string; min: number; expected: number; max: number; sampleSize: number } => {
+          if (ctrs.length === 0) {
+            // Fallback to industry defaults if no data
+            const defaults: Record<string, { min: number; expected: number }> = {
+              '1-3': { min: 0.03, expected: 0.20 },
+              '4-8': { min: 0.02, expected: 0.10 },
+              '9-15': { min: 0.01, expected: 0.05 },
+              '16+': { min: 0.005, expected: 0.02 },
+            };
+            return {
+              positionRange,
+              min: defaults[positionRange].min,
+              expected: defaults[positionRange].expected,
+              max: defaults[positionRange].expected * 1.5,
+              sampleSize: 0,
+            };
+          }
+
+          // Sort CTRs for percentile calculation
+          const sorted = [...ctrs].sort((a, b) => a - b);
+
+          const percentile = (p: number): number => {
+            const index = (p / 100) * (sorted.length - 1);
+            const lower = Math.floor(index);
+            const upper = Math.ceil(index);
+            if (lower === upper) return sorted[lower];
+            return sorted[lower] + (index - lower) * (sorted[upper] - sorted[lower]);
+          };
+
+          return {
+            positionRange,
+            min: percentile(10),      // 10th percentile - below this is anomalous
+            expected: percentile(50), // Median CTR
+            max: percentile(90),      // 90th percentile
+            sampleSize: ctrs.length,
+          };
+        };
+
+        const benchmarks: CTRBenchmarks = {
+          '1-3': calculateBenchmark('1-3', positionGroups['1-3']),
+          '4-8': calculateBenchmark('4-8', positionGroups['4-8']),
+          '9-15': calculateBenchmark('9-15', positionGroups['9-15']),
+          '16+': calculateBenchmark('16+', positionGroups['16+']),
+          calculatedAt: new Date().toISOString(),
+          dataRange: dateRange,
+          totalQueriesAnalyzed: significantQueries.length,
+        };
+
+        this.logger.log(
+          `CTR benchmarks calculated: ` +
+          `1-3: ${(benchmarks['1-3'].expected * 100).toFixed(1)}% expected (n=${benchmarks['1-3'].sampleSize}), ` +
+          `4-8: ${(benchmarks['4-8'].expected * 100).toFixed(1)}% expected (n=${benchmarks['4-8'].sampleSize})`
+        );
+
+        return benchmarks;
+      },
+      // Cache for 24 hours - benchmarks don't need frequent updates
+      86400
+    );
   }
 }

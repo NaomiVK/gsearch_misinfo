@@ -9,6 +9,9 @@ import {
   FlaggedTerm,
   DateRange,
   ExportData,
+  EmergingThreatsResponse,
+  ScamKeywordsConfig,
+  InterestByRegionResponse,
 } from '@cra-scam-detection/shared-types';
 import { environment } from '../../environments/environment';
 
@@ -157,14 +160,63 @@ export class ApiService {
     window.open(url, '_blank');
   }
 
-  /**
-   * Download Excel export
-   */
   downloadExcel(dateRange?: DateRange): void {
     let url = `${this.baseUrl}/export/excel`;
     if (dateRange) {
       url += `?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
     }
     window.open(url, '_blank');
+  }
+
+  getEmergingThreats(days = 7): Observable<ApiResponse<EmergingThreatsResponse>> {
+    const params = new HttpParams().set('days', days.toString());
+    return this.http.get<ApiResponse<EmergingThreatsResponse>>(
+      `${this.baseUrl}/scams/emerging`,
+      { params }
+    );
+  }
+
+  getKeywordsConfig(): Observable<ApiResponse<ScamKeywordsConfig>> {
+    return this.http.get<ApiResponse<ScamKeywordsConfig>>(
+      `${this.baseUrl}/scams/keywords`
+    );
+  }
+
+  addKeyword(term: string, category: string): Observable<ApiResponse<{ message: string }>> {
+    return this.http.post<ApiResponse<{ message: string }>>(
+      `${this.baseUrl}/scams/keywords`,
+      { term, category }
+    );
+  }
+
+  addWhitelist(pattern: string): Observable<ApiResponse<{ message: string }>> {
+    return this.http.post<ApiResponse<{ message: string }>>(
+      `${this.baseUrl}/scams/whitelist`,
+      { pattern }
+    );
+  }
+
+  dismissThreat(id: string): Observable<ApiResponse<{ message: string }>> {
+    return this.http.post<ApiResponse<{ message: string }>>(
+      `${this.baseUrl}/scams/emerging/${id}/dismiss`,
+      {}
+    );
+  }
+
+  getInterestByRegion(keyword: string, geo = 'CA'): Observable<ApiResponse<InterestByRegionResponse>> {
+    const params = new HttpParams().set('keyword', keyword).set('geo', geo);
+    return this.http.get<ApiResponse<InterestByRegionResponse>>(
+      `${this.baseUrl}/trends/region`,
+      { params }
+    );
+  }
+
+  /**
+   * Get Google Maps API key from server
+   */
+  getMapsApiKey(): Observable<ApiResponse<{ apiKey: string }>> {
+    return this.http.get<ApiResponse<{ apiKey: string }>>(
+      `${this.baseUrl}/config/maps-key`
+    );
   }
 }

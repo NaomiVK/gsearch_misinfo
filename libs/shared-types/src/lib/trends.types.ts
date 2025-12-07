@@ -81,6 +81,26 @@ export type TrendsPanelData = {
 };
 
 /**
+ * Interest by region data point
+ */
+export type RegionInterest = {
+  geoCode: string;
+  geoName: string;
+  value: number;
+  hasData: boolean;
+};
+
+/**
+ * Interest by region response
+ */
+export type InterestByRegionResponse = {
+  keyword: string;
+  geo: string;
+  resolution: string;
+  regions: RegionInterest[];
+};
+
+/**
  * Trends API result
  */
 export type TrendsResult = {

@@ -111,19 +111,33 @@ export class TrendsController {
     };
   }
 
-  /**
-   * GET /api/trends/scam-keywords
-   * Get trends data for all monitored scam keywords
-   */
   @Get('scam-keywords')
   async getScamKeywordsTrends() {
     this.logger.log('Fetching trends for scam keywords');
-
     const result = await this.trendsService.getScamKeywordsTrends();
+    return { success: true, data: result };
+  }
 
-    return {
-      success: true,
-      data: result,
-    };
+  @Get('region')
+  async getInterestByRegion(
+    @Query('keyword') keyword: string,
+    @Query('geo') geo?: string,
+    @Query('resolution') resolution?: string
+  ) {
+    if (!keyword) {
+      return { success: false, error: 'Missing required parameter: keyword' };
+    }
+
+    const result = await this.trendsService.getInterestByRegion(
+      keyword,
+      geo || 'CA',
+      resolution || 'REGION'
+    );
+
+    if (!result) {
+      return { success: false, error: 'Failed to fetch interest by region data' };
+    }
+
+    return { success: true, data: result };
   }
 }

@@ -9,6 +9,7 @@ import {
   ScamDetectionService,
   ComparisonService,
   TrendsService,
+  EmergingThreatService,
 } from '../services';
 
 // Controllers
@@ -18,6 +19,7 @@ import {
   ComparisonController,
   TrendsController,
   ExportController,
+  ConfigController,
 } from '../controllers';
 
 @Module({
@@ -29,6 +31,7 @@ import {
     ComparisonController,
     TrendsController,
     ExportController,
+    ConfigController,
   ],
   providers: [
     AppService,
@@ -37,6 +40,7 @@ import {
     ScamDetectionService,
     ComparisonService,
     TrendsService,
+    EmergingThreatService,
   ],
 })
 export class AppModule {}

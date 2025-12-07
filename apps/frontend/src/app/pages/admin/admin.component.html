@@ -1,0 +1,197 @@
+<div class="container-fluid py-4">
+  <h1 class="mb-4">Admin Console</h1>
+
+  <ul ngbNav #nav="ngbNav" [(activeId)]="activeTab" class="nav-tabs">
+    <li [ngbNavItem]="1">
+      <button ngbNavLink>Emerging Threats</button>
+      <ng-template ngbNavContent>
+        <div class="pt-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              @if (emergingThreats(); as data) {
+                <span class="badge bg-danger me-2">{{ data.summary.critical }} Critical</span>
+                <span class="badge bg-warning text-dark me-2">{{ data.summary.high }} High</span>
+                <span class="badge bg-info text-dark me-2">{{ data.summary.medium }} Medium</span>
+                <span class="badge bg-secondary">{{ data.summary.low }} Low</span>
+              }
+            </div>
+            <div>
+              <select class="form-select form-select-sm" [ngModel]="selectedDays()" (ngModelChange)="selectedDays.set($event); onDaysChange()">
+                <option [value]="7">Last 7 days</option>
+                <option [value]="30">Last 30 days</option>
+              </select>
+            </div>
+          </div>
+
+          @if (loading()) {
+            <div class="text-center py-4">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          } @else if (error()) {
+            <div class="alert alert-danger">{{ error() }}</div>
+          } @else if (emergingThreats(); as data) {
+            @if (data.threats.length === 0) {
+              <div class="alert alert-success">No emerging threats detected.</div>
+            } @else {
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Query</th>
+                      <th>Risk</th>
+                      <th>CTR Anomaly</th>
+                      <th>Impressions</th>
+                      <th>Patterns</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (threat of data.threats; track threat.id) {
+                      <tr>
+                        <td>
+                          <strong>{{ threat.query }}</strong>
+                          @if (threat.isNew) {
+                            <span class="badge bg-primary ms-2">New</span>
+                          }
+                        </td>
+                        <td>
+                          <span class="badge bg-{{ getRiskClass(threat.riskLevel) }}">
+                            {{ threat.riskScore }}
+                          </span>
+                          <small class="d-block text-muted">{{ threat.riskLevel }}</small>
+                        </td>
+                        <td>
+                          <div>
+                            <small class="text-muted">Expected: {{ (threat.ctrAnomaly.expectedCTR * 100).toFixed(1) }}%</small>
+                          </div>
+                          <div>
+                            <small [class]="threat.ctrAnomaly.isAnomalous ? 'text-danger fw-bold' : ''">
+                              Actual: {{ (threat.ctrAnomaly.actualCTR * 100).toFixed(2) }}%
+                            </small>
+                          </div>
+                          @if (threat.ctrAnomaly.isAnomalous) {
+                            <span class="badge bg-danger">Anomaly</span>
+                          }
+                        </td>
+                        <td>
+                          {{ threat.current.impressions | number }}
+                          @if (threat.change.impressionsPercent > 0) {
+                            <small class="text-success d-block">+{{ threat.change.impressionsPercent.toFixed(0) }}%</small>
+                          }
+                        </td>
+                        <td>
+                          @for (pattern of threat.matchedPatterns; track pattern) {
+                            <span class="badge bg-secondary me-1 mb-1">{{ pattern }}</span>
+                          }
+                          @for (scam of threat.similarScams; track scam) {
+                            <span class="badge bg-warning text-dark me-1 mb-1">{{ scam }}</span>
+                          }
+                        </td>
+                        <td>
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-danger" (click)="addToKeywords(threat)" ngbTooltip="Add to Keywords">
+                              <i class="bi bi-plus-circle"></i>
+                            </button>
+                            <button class="btn btn-outline-success" (click)="addToWhitelist(threat)" ngbTooltip="Add to Whitelist">
+                              <i class="bi bi-check-circle"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary" (click)="dismissThreat(threat)" ngbTooltip="Dismiss">
+                              <i class="bi bi-x-circle"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        </div>
+      </ng-template>
+    </li>
+
+    <li [ngbNavItem]="2">
+      <button ngbNavLink>Keywords</button>
+      <ng-template ngbNavContent>
+        <div class="pt-4">
+          <div class="card mb-4">
+            <div class="card-body">
+              <h6 class="card-title">Add New Keyword</h6>
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <select class="form-select" [ngModel]="selectedCategory()" (ngModelChange)="selectedCategory.set($event)">
+                    <option value="fakeExpiredBenefits">Fake/Expired Benefits</option>
+                    <option value="illegitimatePaymentMethods">Illegitimate Payment Methods</option>
+                    <option value="threatLanguage">Threat Language</option>
+                    <option value="suspiciousModifiers">Suspicious Modifiers</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <input type="text" class="form-control" placeholder="Enter keyword" [ngModel]="newKeyword()" (ngModelChange)="newKeyword.set($event)">
+                </div>
+                <div class="col-md-2">
+                  <button class="btn btn-primary w-100" (click)="addKeyword()">Add</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          @if (keywordsConfig(); as config) {
+            @for (key of categoryKeys; track key) {
+              <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span>{{ getCategoryDisplayName(key) }}</span>
+                  <span class="badge bg-{{ getRiskClass(getCategory(config, key).severity) }}">
+                    {{ getCategory(config, key).severity }}
+                  </span>
+                </div>
+                <div class="card-body">
+                  @for (term of getCategory(config, key).terms; track term) {
+                    <span class="badge bg-light text-dark me-1 mb-1 p-2">{{ term }}</span>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </ng-template>
+    </li>
+
+    <li [ngbNavItem]="3">
+      <button ngbNavLink>Whitelist</button>
+      <ng-template ngbNavContent>
+        <div class="pt-4">
+          <div class="card mb-4">
+            <div class="card-body">
+              <h6 class="card-title">Add Whitelist Pattern</h6>
+              <div class="row g-2">
+                <div class="col-md-10">
+                  <input type="text" class="form-control" placeholder="Enter pattern (e.g., tfsa contribution)" [ngModel]="newWhitelistPattern()" (ngModelChange)="newWhitelistPattern.set($event)">
+                </div>
+                <div class="col-md-2">
+                  <button class="btn btn-primary w-100" (click)="addWhitelistPattern()">Add</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          @if (keywordsConfig(); as config) {
+            <div class="card">
+              <div class="card-header">Current Whitelist Patterns</div>
+              <div class="card-body">
+                @for (pattern of config.whitelist.patterns; track pattern) {
+                  <span class="badge bg-success me-1 mb-1 p-2">{{ pattern }}</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </ng-template>
+    </li>
+  </ul>
+
+  <div [ngbNavOutlet]="nav"></div>
+</div>

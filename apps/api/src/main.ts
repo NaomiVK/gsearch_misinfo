@@ -3,6 +3,9 @@
  * Backend service for detecting potential scams in Google Search Console data
  */
 
+import * as dotenv from 'dotenv';
+dotenv.config(); // Load .env file
+
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';

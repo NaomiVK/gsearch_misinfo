@@ -2,7 +2,7 @@
   <!-- Header -->
   <div class="row mb-4">
     <div class="col">
-      <h1 class="h3 mb-0">CRA Scam Detection Dashboard</h1>
+      <h1 class="h3 mb-0">CRA Misinformation and Scams</h1>
       <p class="text-muted">Monitor potential scam-related searches targeting CRA pages</p>
     </div>
     <div class="col-auto">
@@ -90,6 +90,40 @@
         </div>
       </div>
     </div>
+
+    <!-- Emerging Threats Summary Card -->
+    @if (emergingThreats(); as threats) {
+      <div class="card mb-4 border-warning">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="card-title mb-1">
+                <i class="bi bi-shield-exclamation text-warning me-2"></i>
+                Emerging Threats
+              </h5>
+              <p class="text-muted mb-0 small">Potential new scam terms detected via CTR anomaly analysis</p>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div class="text-center">
+                <span class="badge bg-danger fs-6">{{ threats.summary.critical }}</span>
+                <div class="small text-muted">Critical</div>
+              </div>
+              <div class="text-center">
+                <span class="badge bg-warning text-dark fs-6">{{ threats.summary.high }}</span>
+                <div class="small text-muted">High</div>
+              </div>
+              <div class="text-center">
+                <span class="badge bg-secondary fs-6">{{ threats.summary.total }}</span>
+                <div class="small text-muted">Total</div>
+              </div>
+              <a routerLink="/admin" class="btn btn-outline-warning">
+                Review in Admin Console <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- Main Content Row -->
     <div class="row">

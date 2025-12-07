@@ -4,7 +4,7 @@
     <div class="col">
       <h1 class="h3 mb-1">
         <i class="bi bi-graph-up-arrow text-primary me-2"></i>
-        Google Trends Analysis
+        CRA Misinformation and Scams
       </h1>
       <p class="text-muted mb-0">Monitor search interest for potential scam-related keywords in Canada</p>
     </div>
@@ -123,6 +123,77 @@
             [tooltip]="chartOptions.tooltip!" [dataLabels]="chartOptions.dataLabels!"
             [legend]="chartOptions.legend!" [grid]="chartOptions.grid!"
             [markers]="chartOptions.markers!" [colors]="chartOptions.colors!"></apx-chart>
+        </div>
+      </div>
+    }
+
+    <!-- Interest by Region - Canada Map -->
+    @if (regionData() || loadingRegion()) {
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+          <h5 class="mb-0"><i class="bi bi-geo-alt me-2 text-primary"></i>Interest by Region (Canada)</h5>
+        </div>
+        <div class="card-body">
+          @if (loadingRegion()) {
+            <div class="text-center py-4">
+              <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+              <span class="text-muted">Loading regional data...</span>
+            </div>
+          } @else if (regionData() && getSortedRegions().length > 0) {
+            <div class="row">
+              <!-- Canada Map using Google Charts GeoChart -->
+              <div class="col-lg-8">
+                <p class="text-muted small mb-3">Search interest by province/territory (0-100 scale, relative to highest region)</p>
+                <div id="canada-geochart" style="width: 100%; height: 400px;"></div>
+              </div>
+
+              <!-- Legend and Top Regions List -->
+              <div class="col-lg-4">
+                <div class="bg-light rounded p-3 mb-3">
+                  <h6 class="mb-3">Legend</h6>
+                  <div class="d-flex align-items-center mb-2">
+                    <div class="rounded me-2" style="width: 16px; height: 16px; background-color: #1a73e8;"></div>
+                    <small>75-100: Very High</small>
+                  </div>
+                  <div class="d-flex align-items-center mb-2">
+                    <div class="rounded me-2" style="width: 16px; height: 16px; background-color: #4285f4;"></div>
+                    <small>50-74: High</small>
+                  </div>
+                  <div class="d-flex align-items-center mb-2">
+                    <div class="rounded me-2" style="width: 16px; height: 16px; background-color: #8ab4f8;"></div>
+                    <small>25-49: Medium</small>
+                  </div>
+                  <div class="d-flex align-items-center mb-2">
+                    <div class="rounded me-2" style="width: 16px; height: 16px; background-color: #c6dafc;"></div>
+                    <small>1-24: Low</small>
+                  </div>
+                  <div class="d-flex align-items-center">
+                    <div class="rounded me-2" style="width: 16px; height: 16px; background-color: #f1f3f4;"></div>
+                    <small>0: No Data</small>
+                  </div>
+                </div>
+
+                <!-- Top Regions List -->
+                <div class="border rounded p-3">
+                  <h6 class="mb-3">Top Regions</h6>
+                  @for (region of getSortedRegions().slice(0, 5); track region.geoCode; let i = $index) {
+                    <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                      <span class="small">
+                        <span class="badge bg-secondary me-1">{{ i + 1 }}</span>
+                        {{ region.geoName }}
+                      </span>
+                      <span class="badge" [style.background-color]="getRegionColor(region.value)"
+                            [style.color]="region.value >= 50 ? 'white' : '#333'">
+                        {{ region.value }}
+                      </span>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          } @else {
+            <p class="text-muted text-center py-3">No regional data available for this search term.</p>
+          }
         </div>
       </div>
     }

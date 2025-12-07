@@ -1,10 +1,7 @@
 <!-- Navigation -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container-fluid">
-    <a class="navbar-brand" routerLink="/dashboard">
-      <i class="bi bi-shield-check me-2"></i>
-      {{ title }}
-    </a>
+    <a class="navbar-brand" routerLink="/dashboard">CRA Misinformation</a>
     <button
       class="navbar-toggler"
       type="button"
@@ -38,6 +35,18 @@
           <a class="nav-link" routerLink="/trends" routerLinkActive="active">
             <i class="bi bi-graph-up me-1"></i>
             Trends
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/social" routerLinkActive="active">
+            <i class="bi bi-broadcast me-1"></i>
+            Social Listening
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/admin" routerLinkActive="active">
+            <i class="bi bi-shield-exclamation me-1"></i>
+            Admin Console
           </a>
         </li>
       </ul>

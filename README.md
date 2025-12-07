@@ -1,101 +1,134 @@
-# CraScamDetection
+# CRA Scam Detection Dashboard
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+A monitoring dashboard that analyzes Google Search Console data to detect potential scam-related searches targeting Canada Revenue Agency (CRA) pages on canada.ca.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## What It Does
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/angular-monorepo-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+Detects searches for:
+- **Fake/expired benefits** - "grocery rebate 2025", "CERB 2024"
+- **Illegitimate payment methods** - "CRA gift card", "CRA bitcoin payment"
+- **Threat language** - "CRA arrest warrant", "CRA deportation"
+- **Suspicious modifiers** - "claim now", "limited time"
 
-## Run tasks
+Uses CTR anomaly detection to identify when users are clicking scam sites instead of legitimate CRA pages.
 
-To run the dev server for your app, use:
+## Tech Stack
 
-```sh
+- **Monorepo**: Nx 22.1.3
+- **Backend**: NestJS 11 (TypeScript)
+- **Frontend**: Angular 20 with Bootstrap/ng-bootstrap
+- **Shared Types**: `libs/shared-types`
+- **External APIs**: Google Search Console, Google Trends
+
+## Project Structure
+
+```
+apps/
+├── api/                    # NestJS backend (port 3000)
+│   ├── controllers/        # REST endpoints
+│   ├── services/           # Business logic
+│   └── config/             # Keyword patterns
+└── frontend/               # Angular frontend (port 4200)
+    └── pages/
+        ├── dashboard/      # Main KPI view
+        ├── comparison/     # Period-over-period analysis
+        ├── trends/         # Google Trends visualization
+        ├── settings/       # Keyword management
+        └── admin/          # Emerging threats
+
+libs/
+└── shared-types/           # Shared TypeScript types
+```
+
+## Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Start both API and frontend
+npm start
+
+# Or run individually
+npm run start:api        # Backend on http://localhost:3000
+npm run start:frontend   # Frontend on http://localhost:4200
+```
+
+## Commands
+
+```bash
+# Development
+npm start                 # Start all services
+npm run start:api         # NestJS API only
+npm run start:frontend    # Angular frontend only
+
+# Build
+npm run build             # Build all projects
+npm run build:api
+npm run build:frontend
+
+# Quality
+npm run lint              # Lint all projects
+npm run test              # Run all tests
+
+# Nx commands
+npx nx serve api
 npx nx serve frontend
+npx nx build <project>
+npx nx graph              # Visualize project dependencies
 ```
 
-To create a production bundle:
+## Configuration
 
-```sh
-npx nx build frontend
+### Google Search Console Authentication
+
+Create `service-account-credentials.json` at project root with a Google Cloud service account that has `webmasters.readonly` scope.
+
+### Environment Variables
+
+Create `.env` at project root:
+
+```env
+# Google Maps API (for regional interest maps)
+GOOGLE_MAPS_API_KEY=your_key_here
+
+# Optional: OpenRouter API (for future AI agent features)
+OPENROUTER_API_KEY=your_key_here
 ```
 
-To see all available targets to run for a project, run:
+### Scam Keywords
 
-```sh
-npx nx show project frontend
-```
+Configure detection patterns in `apps/api/src/config/scam-keywords.json`:
+- Categories with severity levels (critical, high, medium, low)
+- Contextual matching via `mustContain`
+- Whitelist patterns for legitimate searches
+- Seasonal multipliers for tax season
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+## API Endpoints
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/scams/dashboard` | Main dashboard data with KPIs and alerts |
+| `GET /api/scams/detect` | Run scam detection for date range |
+| `GET /api/scams/benchmarks` | Dynamic CTR benchmarks from Search Console |
+| `GET /api/comparison/week-over-week` | Period comparison |
+| `GET /api/trends/scam-keywords` | Google Trends for keywords |
+| `GET /api/trends/region` | Interest by region data |
+| `GET /api/export/csv` | Export flagged terms as CSV |
+| `GET /api/export/excel` | Export as Excel |
+| `GET /api/export/json` | Export as JSON |
 
-## Add new projects
+## Future: AI Agent Architecture
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+See [PLAN.md](./PLAN.md) for detailed implementation plan for adding AI-powered agents:
+- **Classification Agent** - Semantic query classification using LLM
+- **Keyword Manager Agent** - Automated keyword database management
+- **Report Generation Agent** - Natural language executive summaries
+- **Anomaly Investigation Agent** - Autonomous CTR anomaly investigation
 
-Use the plugin's generator to create new projects.
+## Development Notes
 
-To generate a new application, use:
-
-```sh
-npx nx g @nx/angular:app demo
-```
-
-To generate a new library, use:
-
-```sh
-npx nx g @nx/angular:lib mylib
-```
-
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
-
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Set up CI!
-
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
-```
-
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/angular-monorepo-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+See [CLAUDE.md](./CLAUDE.md) for detailed development context including:
+- Known issues and workarounds
+- Shell escaping with Angular templates
+- Stopping the Nx dev server on Windows

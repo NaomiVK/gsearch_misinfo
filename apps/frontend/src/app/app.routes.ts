@@ -31,6 +31,16 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'social',
+    loadComponent: () =>
+      import('./pages/social/social.component').then((m) => m.SocialComponent),
+  },
+  {
+    path: 'admin',
+    loadComponent: () =>
+      import('./pages/admin/admin.component').then((m) => m.AdminComponent),
+  },
+  {
     path: '**',
     redirectTo: 'dashboard',
   },

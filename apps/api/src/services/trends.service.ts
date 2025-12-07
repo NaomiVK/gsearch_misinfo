@@ -7,6 +7,8 @@ import {
   TrendExploration,
   TrendsPanelData,
   TrendsResult,
+  InterestByRegionResponse,
+  RegionInterest,
 } from '@cra-scam-detection/shared-types';
 import { environment } from '../environments/environment';
 
@@ -343,9 +345,54 @@ export class TrendsService {
     );
   }
 
-  /**
-   * Helper to add delay between requests
-   */
+  async getInterestByRegion(
+    keyword: string,
+    geo = 'CA',
+    resolution = 'REGION'
+  ): Promise<InterestByRegionResponse | null> {
+    const cacheKey = `trends:region:${keyword}:${geo}:${resolution}`;
+
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        try {
+          this.logger.log(`Fetching interest by region for "${keyword}" in ${geo}`);
+
+          const result = await googleTrends.interestByRegion({
+            keyword,
+            geo,
+            resolution,
+          });
+
+          const parsed = JSON.parse(result);
+          const geoMapData = parsed.default?.geoMapData || [];
+
+          const regions: RegionInterest[] = geoMapData.map(
+            (item: { geoCode: string; geoName: string; value: number[]; hasData: boolean[] }) => ({
+              geoCode: item.geoCode,
+              geoName: item.geoName,
+              value: item.value[0] || 0,
+              hasData: item.hasData[0] || false,
+            })
+          );
+
+          this.logger.log(`Received ${regions.length} regions for "${keyword}"`);
+
+          return {
+            keyword,
+            geo,
+            resolution,
+            regions,
+          };
+        } catch (error) {
+          this.logger.error(`Failed to fetch interest by region for "${keyword}": ${error.message}`);
+          return null;
+        }
+      },
+      environment.cache.trendsTtl
+    );
+  }
+
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }

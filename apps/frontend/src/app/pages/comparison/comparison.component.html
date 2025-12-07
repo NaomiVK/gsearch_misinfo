@@ -197,7 +197,7 @@
           <div class="card-header bg-secondary text-white">
             <h5 class="mb-0">
               <i class="bi bi-dash-circle me-2"></i>
-              Removed Terms ({{ comparisonData()!.summary.goneTerms }})
+              Dropped Off ({{ comparisonData()!.summary.goneTerms }})
             </h5>
           </div>
           <div class="card-body scrollable" style="max-height: 300px; overflow-y: auto;">
@@ -209,7 +209,7 @@
                 <span class="badge bg-secondary">was {{ term.previous.impressions | number }} imp</span>
               </div>
             } @empty {
-              <p class="text-muted text-center mb-0">No terms removed</p>
+              <p class="text-muted text-center mb-0">No terms dropped off</p>
             }
           </div>
         </div>

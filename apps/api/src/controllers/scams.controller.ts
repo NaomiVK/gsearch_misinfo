@@ -1,7 +1,12 @@
-import { Controller, Get, Query, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, Param, Logger } from '@nestjs/common';
 import { ScamDetectionService } from '../services/scam-detection.service';
 import { SearchConsoleService } from '../services/search-console.service';
-import { DateRange } from '@cra-scam-detection/shared-types';
+import { EmergingThreatService } from '../services/emerging-threat.service';
+import {
+  DateRange,
+  AddKeywordRequest,
+  AddWhitelistRequest,
+} from '@cra-scam-detection/shared-types';
 import { environment } from '../environments/environment';
 
 @Controller('scams')
@@ -10,7 +15,8 @@ export class ScamsController {
 
   constructor(
     private readonly scamDetectionService: ScamDetectionService,
-    private readonly searchConsoleService: SearchConsoleService
+    private readonly searchConsoleService: SearchConsoleService,
+    private readonly emergingThreatService: EmergingThreatService
   ) {}
 
   /**
@@ -103,10 +109,6 @@ export class ScamsController {
     };
   }
 
-  /**
-   * GET /api/scams/dashboard
-   * Get dashboard summary data
-   */
   @Get('dashboard')
   async getDashboardData(
     @Query('startDate') startDate?: string,
@@ -126,17 +128,14 @@ export class ScamsController {
 
     const detection = await this.scamDetectionService.detectScams(dateRange);
 
-    // Get critical alerts (critical severity terms)
     const criticalAlerts = detection.flaggedTerms
       .filter((t) => t.severity === 'critical')
       .slice(0, 10);
 
-    // Get new terms (status === 'new')
     const newTerms = detection.flaggedTerms
       .filter((t) => t.status === 'new')
       .slice(0, 10);
 
-    // Get trending terms (highest impressions for now)
     const trendingTerms = [...detection.flaggedTerms]
       .sort((a, b) => b.impressions - a.impressions)
       .slice(0, 10);
@@ -153,5 +152,42 @@ export class ScamsController {
         period: dateRange,
       },
     };
+  }
+
+  @Get('emerging')
+  async getEmergingThreats(@Query('days') days?: string) {
+    const daysNum = days ? parseInt(days, 10) : 7;
+    const result = await this.emergingThreatService.getEmergingThreats(daysNum);
+    return { success: true, data: result };
+  }
+
+  @Post('keywords')
+  async addKeyword(@Body() request: AddKeywordRequest) {
+    this.logger.log(`Adding keyword "${request.term}" to category "${request.category}"`);
+    await this.scamDetectionService.addKeyword(request.term, request.category);
+    return { success: true, message: `Added "${request.term}" to ${request.category}` };
+  }
+
+  @Post('whitelist')
+  async addWhitelist(@Body() request: AddWhitelistRequest) {
+    this.logger.log(`Adding whitelist pattern: "${request.pattern}"`);
+    await this.scamDetectionService.addWhitelistPattern(request.pattern);
+    return { success: true, message: `Added "${request.pattern}" to whitelist` };
+  }
+
+  @Post('emerging/:id/dismiss')
+  async dismissThreat(@Param('id') id: string) {
+    this.logger.log(`Dismissing threat: ${id}`);
+    return { success: true, message: `Dismissed threat ${id}` };
+  }
+
+  /**
+   * GET /api/scams/benchmarks
+   * Get the current CTR benchmarks (dynamically calculated from your data)
+   */
+  @Get('benchmarks')
+  async getCTRBenchmarks() {
+    const benchmarks = await this.emergingThreatService.getCTRBenchmarks();
+    return { success: true, data: benchmarks };
   }
 }
