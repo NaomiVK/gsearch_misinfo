@@ -126,9 +126,3 @@ See [PLAN.md](./PLAN.md) for detailed implementation plan for adding AI-powered 
 - **Report Generation Agent** - Natural language executive summaries
 - **Anomaly Investigation Agent** - Autonomous CTR anomaly investigation
 
-## Development Notes
-
-See [CLAUDE.md](./CLAUDE.md) for detailed development context including:
-- Known issues and workarounds
-- Shell escaping with Angular templates
-- Stopping the Nx dev server on Windows
