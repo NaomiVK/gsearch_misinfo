@@ -1,5 +1,16 @@
 <div class="container-fluid py-4">
-  <h1 class="mb-4">Admin Console</h1>
+  <div class="row mb-4">
+    <div class="col">
+      <h1 class="h3 mb-0">Admin Console</h1>
+      <p class="text-muted">Manage scam detection keywords and monitor emerging threats</p>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-success" (click)="exportConfig()" [disabled]="!keywordsConfig()">
+        <i class="bi bi-download me-1"></i>
+        Export Configuration
+      </button>
+    </div>
+  </div>
 
   <ul ngbNav #nav="ngbNav" [(activeId)]="activeTab" class="nav-tabs">
     <li [ngbNavItem]="1">
@@ -107,6 +118,26 @@
                   </tbody>
                 </table>
               </div>
+
+              <!-- Pagination -->
+              @if (data.pagination.totalPages > 1) {
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                  <small class="text-muted">
+                    Showing {{ (data.pagination.page - 1) * data.pagination.pageSize + 1 }} -
+                    {{ Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.totalItems) }}
+                    of {{ data.pagination.totalItems }} threats
+                  </small>
+                  <ngb-pagination
+                    [collectionSize]="data.pagination.totalItems"
+                    [page]="data.pagination.page"
+                    [pageSize]="data.pagination.pageSize"
+                    [maxSize]="5"
+                    [rotate]="true"
+                    [boundaryLinks]="true"
+                    (pageChange)="onPageChange($event)">
+                  </ngb-pagination>
+                </div>
+              }
             }
           }
         </div>
@@ -167,6 +198,9 @@
           <div class="card mb-4">
             <div class="card-body">
               <h6 class="card-title">Add Whitelist Pattern</h6>
+              <p class="text-muted small">
+                Whitelisted terms will never be flagged as potential scams, even if they match other patterns.
+              </p>
               <div class="row g-2">
                 <div class="col-md-10">
                   <input type="text" class="form-control" placeholder="Enter pattern (e.g., tfsa contribution)" [ngModel]="newWhitelistPattern()" (ngModelChange)="newWhitelistPattern.set($event)">
@@ -188,6 +222,58 @@
               </div>
             </div>
           }
+        </div>
+      </ng-template>
+    </li>
+
+    <li [ngbNavItem]="4">
+      <button ngbNavLink>About</button>
+      <ng-template ngbNavContent>
+        <div class="card mt-4">
+          <div class="card-body">
+            <h5 class="card-title">CRA Scam Detection Dashboard</h5>
+            <p>
+              This application monitors Google Search Console data for potential scam-related
+              searches targeting Canada Revenue Agency (CRA) pages on canada.ca.
+            </p>
+
+            <h6 class="mt-4">How It Works</h6>
+            <ul>
+              <li>Fetches search query data from Google Search Console API</li>
+              <li>Filters for CRA-related URLs on canada.ca</li>
+              <li>Matches queries against configurable scam keyword patterns</li>
+              <li>Applies contextual matching (CRA + scam method combinations)</li>
+              <li>Flags terms exceeding the impression threshold</li>
+              <li>Tracks changes over time for trend analysis</li>
+            </ul>
+
+            <h6 class="mt-4">Detection Categories</h6>
+            <ul>
+              <li>
+                <span class="badge bg-danger">Critical</span>
+                Fake/expired benefits and illegitimate payment methods
+              </li>
+              <li>
+                <span class="badge bg-warning text-dark">High</span>
+                Threat language and urgency tactics
+              </li>
+              <li>
+                <span class="badge bg-info">Medium</span>
+                Suspicious modifiers and vague promises
+              </li>
+              <li>
+                <span class="badge bg-secondary">Low</span>
+                General suspicious patterns
+              </li>
+            </ul>
+
+            <h6 class="mt-4">Configuration</h6>
+            <p>
+              Keywords can be managed through the Keywords and Whitelist tabs above.
+              Use the <strong>Export Configuration</strong> button to download the current
+              configuration as a JSON file that can be deployed to the server.
+            </p>
+          </div>
         </div>
       </ng-template>
     </li>

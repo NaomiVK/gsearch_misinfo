@@ -168,8 +168,10 @@ export class ApiService {
     window.open(url, '_blank');
   }
 
-  getEmergingThreats(days = 7): Observable<ApiResponse<EmergingThreatsResponse>> {
-    const params = new HttpParams().set('days', days.toString());
+  getEmergingThreats(days = 7, page = 1): Observable<ApiResponse<EmergingThreatsResponse>> {
+    const params = new HttpParams()
+      .set('days', days.toString())
+      .set('page', page.toString());
     return this.http.get<ApiResponse<EmergingThreatsResponse>>(
       `${this.baseUrl}/scams/emerging`,
       { params }

@@ -1,7 +1,7 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NgbNavModule, NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgbNavModule, NgbTooltipModule, NgbPaginationModule } from '@ng-bootstrap/ng-bootstrap';
 import { ApiService } from '../../services/api.service';
 import {
   EmergingThreat,
@@ -15,12 +15,15 @@ type CategoryKey = 'fakeExpiredBenefits' | 'illegitimatePaymentMethods' | 'threa
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgbNavModule, NgbTooltipModule],
+  imports: [CommonModule, FormsModule, NgbNavModule, NgbTooltipModule, NgbPaginationModule],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',
 })
 export class AdminComponent implements OnInit {
   private readonly api = inject(ApiService);
+
+  // Expose Math for template
+  Math = Math;
 
   activeTab = signal(1);
   loading = signal(false);
@@ -29,6 +32,7 @@ export class AdminComponent implements OnInit {
   emergingThreats = signal<EmergingThreatsResponse | null>(null);
   keywordsConfig = signal<ScamKeywordsConfig | null>(null);
   selectedDays = signal(7);
+  currentPage = signal(1);
   selectedCategory = signal('fakeExpiredBenefits');
   newKeyword = signal('');
   newWhitelistPattern = signal('');
@@ -40,7 +44,7 @@ export class AdminComponent implements OnInit {
 
   loadEmergingThreats(): void {
     this.loading.set(true);
-    this.api.getEmergingThreats(this.selectedDays()).subscribe({
+    this.api.getEmergingThreats(this.selectedDays(), this.currentPage()).subscribe({
       next: (res) => {
         if (res.success) {
           this.emergingThreats.set(res.data);
@@ -53,6 +57,11 @@ export class AdminComponent implements OnInit {
         console.error(err);
       },
     });
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage.set(page);
+    this.loadEmergingThreats();
   }
 
   loadKeywordsConfig(): void {
@@ -69,6 +78,7 @@ export class AdminComponent implements OnInit {
   }
 
   onDaysChange(): void {
+    this.currentPage.set(1); // Reset to first page when changing days
     this.loadEmergingThreats();
   }
 
@@ -168,4 +178,29 @@ export class AdminComponent implements OnInit {
   }
 
   categoryKeys: CategoryKey[] = ['fakeExpiredBenefits', 'illegitimatePaymentMethods', 'threatLanguage', 'suspiciousModifiers'];
+
+  exportConfig(): void {
+    const config = this.keywordsConfig();
+    if (!config) {
+      console.error('No configuration loaded to export');
+      return;
+    }
+
+    const exportData = {
+      version: config.version || '1.0.0',
+      lastUpdated: new Date().toISOString(),
+      categories: config.categories,
+      whitelist: config.whitelist,
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'scam-keywords.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 }

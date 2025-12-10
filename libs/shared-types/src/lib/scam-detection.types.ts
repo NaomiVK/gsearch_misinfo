@@ -262,6 +262,18 @@ export type EmergingThreat = {
 };
 
 /**
+ * Pagination info for paginated responses
+ */
+export type PaginationInfo = {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+};
+
+/**
  * Response type for emerging threats API
  */
 export type EmergingThreatsResponse = {
@@ -275,6 +287,7 @@ export type EmergingThreatsResponse = {
     low: number;
     total: number;
   };
+  pagination: PaginationInfo;
 };
 
 /**

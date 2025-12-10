@@ -24,13 +24,6 @@ export const appRoutes: Route[] = [
       import('./pages/trends/trends.component').then((m) => m.TrendsComponent),
   },
   {
-    path: 'settings',
-    loadComponent: () =>
-      import('./pages/settings/settings.component').then(
-        (m) => m.SettingsComponent
-      ),
-  },
-  {
     path: 'social',
     loadComponent: () =>
       import('./pages/social/social.component').then((m) => m.SocialComponent),

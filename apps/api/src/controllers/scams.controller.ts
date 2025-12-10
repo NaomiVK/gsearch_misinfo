@@ -155,9 +155,13 @@ export class ScamsController {
   }
 
   @Get('emerging')
-  async getEmergingThreats(@Query('days') days?: string) {
+  async getEmergingThreats(
+    @Query('days') days?: string,
+    @Query('page') page?: string
+  ) {
     const daysNum = days ? parseInt(days, 10) : 7;
-    const result = await this.emergingThreatService.getEmergingThreats(daysNum);
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const result = await this.emergingThreatService.getEmergingThreats(daysNum, pageNum);
     return { success: true, data: result };
   }
 

@@ -11,7 +11,15 @@ import {
   RiskLevel,
   TermComparison,
   DateRange,
+  PaginationInfo,
 } from '@cra-scam-detection/shared-types';
+
+/**
+ * Pagination constants
+ */
+const MAX_TOTAL_THREATS = 5000;
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 5;
 import { environment } from '../environments/environment';
 import { v4 as uuidv4 } from 'uuid';
 import * as stringSimilarity from 'string-similarity';
@@ -82,14 +90,17 @@ export class EmergingThreatService {
   /**
    * Get emerging threats by analyzing comparison data
    * Compares current period vs previous period and identifies suspicious terms
+   * Supports pagination with max 5000 results, 1000 per page, 5 pages max
    */
-  async getEmergingThreats(days = 7): Promise<EmergingThreatsResponse> {
-    const cacheKey = `emerging-threats:${days}`;
+  async getEmergingThreats(days = 7, page = 1): Promise<EmergingThreatsResponse> {
+    // Validate page number
+    const validPage = Math.max(1, Math.min(page, MAX_PAGES));
+    const cacheKey = `emerging-threats:${days}:page-${validPage}`;
 
     return this.cacheService.getOrSet(
       cacheKey,
       async () => {
-        this.logger.log(`Analyzing emerging threats for ${days}-day comparison`);
+        this.logger.log(`Analyzing emerging threats for ${days}-day comparison (page ${validPage})`);
 
         // Get dynamic CTR benchmarks from actual data
         const benchmarks = await this.getCTRBenchmarks();
@@ -100,34 +111,56 @@ export class EmergingThreatService {
           : await this.comparisonService.compareMonthOverMonth();
 
         // Analyze all terms for emerging threats
-        const threats: EmergingThreat[] = [];
+        const allThreats: EmergingThreat[] = [];
 
         for (const term of comparison.terms) {
           const threat = this.analyzeTermForThreats(term, benchmarks);
           if (threat && threat.riskScore >= 30) {
-            threats.push(threat);
+            allThreats.push(threat);
           }
         }
 
         // Sort by risk score descending
-        threats.sort((a, b) => b.riskScore - a.riskScore);
+        allThreats.sort((a, b) => b.riskScore - a.riskScore);
 
+        // Limit to max total threats
+        const limitedThreats = allThreats.slice(0, MAX_TOTAL_THREATS);
+        const totalItems = limitedThreats.length;
+        const totalPages = Math.min(MAX_PAGES, Math.ceil(totalItems / PAGE_SIZE));
+
+        // Calculate pagination
+        const startIndex = (validPage - 1) * PAGE_SIZE;
+        const endIndex = Math.min(startIndex + PAGE_SIZE, totalItems);
+        const paginatedThreats = limitedThreats.slice(startIndex, endIndex);
+
+        const pagination: PaginationInfo = {
+          page: validPage,
+          pageSize: PAGE_SIZE,
+          totalItems,
+          totalPages,
+          hasNextPage: validPage < totalPages,
+          hasPrevPage: validPage > 1,
+        };
+
+        // Summary is based on ALL threats (not just current page)
         const response: EmergingThreatsResponse = {
           currentPeriod: comparison.currentPeriod,
           previousPeriod: comparison.previousPeriod,
-          threats,
+          threats: paginatedThreats,
           summary: {
-            critical: threats.filter(t => t.riskLevel === 'critical').length,
-            high: threats.filter(t => t.riskLevel === 'high').length,
-            medium: threats.filter(t => t.riskLevel === 'medium').length,
-            low: threats.filter(t => t.riskLevel === 'low').length,
-            total: threats.length,
+            critical: limitedThreats.filter(t => t.riskLevel === 'critical').length,
+            high: limitedThreats.filter(t => t.riskLevel === 'high').length,
+            medium: limitedThreats.filter(t => t.riskLevel === 'medium').length,
+            low: limitedThreats.filter(t => t.riskLevel === 'low').length,
+            total: totalItems,
           },
+          pagination,
         };
 
         this.logger.log(
           `Found ${response.summary.total} emerging threats ` +
-          `(${response.summary.critical} critical, ${response.summary.high} high)`
+          `(${response.summary.critical} critical, ${response.summary.high} high) - ` +
+          `showing page ${validPage}/${totalPages} (${paginatedThreats.length} items)`
         );
 
         return response;
