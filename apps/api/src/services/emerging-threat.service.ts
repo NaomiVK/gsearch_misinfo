@@ -3,6 +3,7 @@ import { CacheService } from './cache.service';
 import { ComparisonService } from './comparison.service';
 import { ScamDetectionService } from './scam-detection.service';
 import { SearchConsoleService } from './search-console.service';
+import { EmbeddingService } from './embedding.service';
 import {
   EmergingThreat,
   EmergingThreatsResponse,
@@ -55,7 +56,8 @@ export class EmergingThreatService {
     private readonly cacheService: CacheService,
     private readonly comparisonService: ComparisonService,
     private readonly scamDetectionService: ScamDetectionService,
-    private readonly searchConsoleService: SearchConsoleService
+    private readonly searchConsoleService: SearchConsoleService,
+    private readonly embeddingService: EmbeddingService
   ) {}
 
   /**
@@ -91,6 +93,8 @@ export class EmergingThreatService {
    * Get emerging threats by analyzing comparison data
    * Compares current period vs previous period and identifies suspicious terms
    * Supports pagination with max 5000 results, 1000 per page, 5 pages max
+   *
+   * NEW: Uses embedding-based similarity for better scam pattern detection
    */
   async getEmergingThreats(days = 7, page = 1): Promise<EmergingThreatsResponse> {
     // Validate page number
@@ -110,11 +114,58 @@ export class EmergingThreatService {
           ? await this.comparisonService.compareWeekOverWeek()
           : await this.comparisonService.compareMonthOverMonth();
 
-        // Analyze all terms for emerging threats
+        // STEP 1: Pre-filter terms that are worth analyzing
+        // Focus on NEW terms and GROWING terms (not all 25k+ queries)
+        const candidateTerms = comparison.terms.filter(term => {
+          // Include if: new term with decent impressions
+          if (term.isNew && term.current.impressions >= 20) return true;
+
+          // Include if: significant impression growth (>50%)
+          if (term.change.impressionsPercent >= 50 && term.current.impressions >= 50) return true;
+
+          // Include if: high volume (might be ongoing scam)
+          if (term.current.impressions >= 500) return true;
+
+          return false;
+        });
+
+        this.logger.log(
+          `Pre-filtered to ${candidateTerms.length} candidate terms from ${comparison.terms.length} total`
+        );
+
+        // STEP 2: Batch analyze candidates with embeddings (if service is ready)
+        let embeddingResults: Map<string, { similarity: number; matchedPhrase: string; category: string; severity: string }> = new Map();
+
+        if (this.embeddingService.isReady() && candidateTerms.length > 0) {
+          try {
+            const queries = candidateTerms.map(t => t.query);
+            const results = await this.embeddingService.analyzeQueries(queries, 0.75); // Lower threshold for candidates
+
+            for (const result of results) {
+              if (result.topMatch) {
+                embeddingResults.set(result.query.toLowerCase(), {
+                  similarity: result.topMatch.similarity,
+                  matchedPhrase: result.topMatch.phrase,
+                  category: result.topMatch.category,
+                  severity: result.topMatch.severity,
+                });
+              }
+            }
+
+            this.logger.log(
+              `Embedding analysis found ${embeddingResults.size} queries with scam similarity`
+            );
+          } catch (error) {
+            this.logger.warn(`Embedding analysis failed, falling back to string matching: ${error.message}`);
+          }
+        }
+
+        // STEP 3: Analyze all candidate terms for emerging threats
         const allThreats: EmergingThreat[] = [];
 
-        for (const term of comparison.terms) {
-          const threat = this.analyzeTermForThreats(term, benchmarks);
+        for (const term of candidateTerms) {
+          const embeddingMatch = embeddingResults.get(term.query.toLowerCase());
+          const threat = this.analyzeTermForThreats(term, benchmarks, embeddingMatch);
           if (threat && threat.riskScore >= 30) {
             allThreats.push(threat);
           }
@@ -171,8 +222,13 @@ export class EmergingThreatService {
 
   /**
    * Analyze a single term for threat indicators
+   * @param embeddingMatch Optional embedding match result from batch analysis
    */
-  private analyzeTermForThreats(term: TermComparison, benchmarks: CTRBenchmarks): EmergingThreat | null {
+  private analyzeTermForThreats(
+    term: TermComparison,
+    benchmarks: CTRBenchmarks,
+    embeddingMatch?: { similarity: number; matchedPhrase: string; category: string; severity: string }
+  ): EmergingThreat | null {
     const query = term.query.toLowerCase();
 
     // Skip if whitelisted (use scam detection service's whitelist)
@@ -188,17 +244,20 @@ export class EmergingThreatService {
     // Find matching dynamic patterns
     const matchedPatterns = this.checkDynamicPatterns(query);
 
-    // Find similar known scam terms
-    const similarScams = this.findSimilarScams(query);
+    // Find similar known scam terms (uses embedding if available, falls back to string similarity)
+    const similarScams = embeddingMatch
+      ? [`${embeddingMatch.matchedPhrase} (${Math.round(embeddingMatch.similarity * 100)}% semantic match)`]
+      : this.findSimilarScams(query);
 
-    // Calculate composite risk score
-    const riskScore = this.calculateRiskScore(term, ctrAnomaly, matchedPatterns, similarScams);
+    // Calculate composite risk score (embedding match boosts the score significantly)
+    const riskScore = this.calculateRiskScore(term, ctrAnomaly, matchedPatterns, similarScams, embeddingMatch);
 
     // Determine risk level
     const riskLevel = this.getRiskLevel(riskScore);
 
     // Only return if there's meaningful risk
-    if (riskScore < 20 && matchedPatterns.length === 0 && similarScams.length === 0) {
+    // If we have an embedding match, always include it (semantic match is strong signal)
+    if (!embeddingMatch && riskScore < 20 && matchedPatterns.length === 0 && similarScams.length === 0) {
       return null;
     }
 
@@ -351,24 +410,26 @@ export class EmergingThreatService {
   /**
    * Calculate composite risk score (0-100)
    *
-   * Formula:
+   * Formula (without embedding):
    *   ctrFactor (40%) + positionFactor (25%) + volumeFactor (20%) + emergenceFactor (15%)
+   *
+   * With embedding match:
+   *   embeddingFactor (35%) + ctrFactor (25%) + positionFactor (15%) + volumeFactor (15%) + emergenceFactor (10%)
    */
   calculateRiskScore(
     term: TermComparison,
     ctrAnomaly: CTRAnomaly,
     matchedPatterns: string[],
-    similarScams: string[]
+    similarScams: string[],
+    embeddingMatch?: { similarity: number; matchedPhrase: string; category: string; severity: string }
   ): number {
-    // 1. CTR Factor (40% weight) - KEY SIGNAL
-    // Low CTR at good position = users clicking elsewhere (scam sites)
+    // 1. CTR Factor - Low CTR at good position = users clicking elsewhere (scam sites)
     let ctrFactor = ctrAnomaly.anomalyScore;
     if (ctrAnomaly.isAnomalous) {
       ctrFactor = Math.min(1, ctrFactor + 0.3); // Boost if definitely anomalous
     }
 
-    // 2. Position Factor (25% weight)
-    // Good position + low clicks = very suspicious
+    // 2. Position Factor - Good position + low clicks = very suspicious
     let positionFactor = 0;
     const position = term.current.position;
     const clicks = term.current.clicks;
@@ -382,8 +443,7 @@ export class EmergingThreatService {
       positionFactor = 0.5;
     }
 
-    // 3. Volume Factor (20% weight)
-    // Sudden spike in impressions
+    // 3. Volume Factor - Sudden spike in impressions
     let volumeFactor = 0;
     const impressionGrowth = term.change.impressionsPercent;
     if (impressionGrowth >= 300) {
@@ -396,8 +456,7 @@ export class EmergingThreatService {
       volumeFactor = 0.3;
     }
 
-    // 4. Emergence Factor (15% weight)
-    // New terms appearing with volume are emerging threats
+    // 4. Emergence Factor - New terms appearing with volume are emerging threats
     let emergenceFactor = 0;
     if (term.isNew) {
       if (impressions > 100) {
@@ -409,22 +468,47 @@ export class EmergingThreatService {
       }
     }
 
-    // Calculate base score
-    let score = (
-      (ctrFactor * 0.40) +
-      (positionFactor * 0.25) +
-      (volumeFactor * 0.20) +
-      (emergenceFactor * 0.15)
-    ) * 100;
+    // Calculate base score - use different weights if we have embedding match
+    let score: number;
 
-    // Boost for pattern matches
+    if (embeddingMatch) {
+      // 5. Embedding Factor - Semantic similarity to known scam phrases (STRONGEST signal)
+      const embeddingFactor = embeddingMatch.similarity;
+
+      // Severity boost based on matched category
+      let severityMultiplier = 1.0;
+      if (embeddingMatch.severity === 'critical') {
+        severityMultiplier = 1.3;
+      } else if (embeddingMatch.severity === 'high') {
+        severityMultiplier = 1.15;
+      }
+
+      // With embedding: give semantic match the highest weight
+      score = (
+        (embeddingFactor * 0.35 * severityMultiplier) +
+        (ctrFactor * 0.25) +
+        (positionFactor * 0.15) +
+        (volumeFactor * 0.15) +
+        (emergenceFactor * 0.10)
+      ) * 100;
+    } else {
+      // Without embedding: use original weights
+      score = (
+        (ctrFactor * 0.40) +
+        (positionFactor * 0.25) +
+        (volumeFactor * 0.20) +
+        (emergenceFactor * 0.15)
+      ) * 100;
+    }
+
+    // Boost for pattern matches (regex patterns like dollar amounts, urgency words)
     if (matchedPatterns.length > 0) {
       const patternBoost = Math.min(20, matchedPatterns.length * 5);
       score += patternBoost;
     }
 
-    // Boost for similar known scams
-    if (similarScams.length > 0) {
+    // Boost for similar known scams (only if no embedding match - avoid double counting)
+    if (!embeddingMatch && similarScams.length > 0) {
       const similarBoost = Math.min(15, similarScams.length * 5);
       score += similarBoost;
     }

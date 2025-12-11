@@ -10,6 +10,7 @@ import {
   ComparisonService,
   TrendsService,
   EmergingThreatService,
+  EmbeddingService,
 } from '../services';
 
 // Controllers
@@ -41,6 +42,7 @@ import {
     ComparisonService,
     TrendsService,
     EmergingThreatService,
+    EmbeddingService,
   ],
 })
 export class AppModule {}

@@ -6,7 +6,7 @@
       <p class="text-muted">Monitor potential scam-related searches targeting CRA pages</p>
     </div>
     <div class="col-auto">
-      <div class="btn-group">
+      <div class="btn-group" ngbTooltip="Select time period for analysis">
         <button class="btn btn-outline-secondary" (click)="onQuickDateRange(7)">7 Days</button>
         <button class="btn btn-outline-secondary" (click)="onQuickDateRange(14)">14 Days</button>
         <button class="btn btn-outline-secondary" (click)="onQuickDateRange(28)">28 Days</button>
@@ -38,7 +38,7 @@
     <!-- KPI Cards -->
     <div class="row mb-4">
       <div class="col-md-3">
-        <div class="card kpi-card border-danger">
+        <div class="card kpi-card border-danger" ngbTooltip="Queries matching critical scam patterns like fake benefits or illegitimate payment methods">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
               <div>
@@ -51,7 +51,7 @@
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card kpi-card border-warning">
+        <div class="card kpi-card border-warning" ngbTooltip="Queries with threat language or urgency tactics requiring prompt review">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
               <div>
@@ -64,7 +64,7 @@
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card kpi-card">
+        <div class="card kpi-card" ngbTooltip="Total number of queries flagged as potentially scam-related">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
               <div>
@@ -77,7 +77,7 @@
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card kpi-card">
+        <div class="card kpi-card" ngbTooltip="Total unique search queries analyzed from Google Search Console">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start">
               <div>
@@ -101,22 +101,24 @@
                 <i class="bi bi-shield-exclamation text-warning me-2"></i>
                 Emerging Threats
               </h5>
-              <p class="text-muted mb-0 small">Potential new scam terms detected via CTR anomaly analysis</p>
+              <p class="text-muted mb-0 small" ngbTooltip="New or growing queries with low CTR at good positions - indicates users may be clicking scam sites instead">
+                Potential new scam terms detected via CTR anomaly analysis
+              </p>
             </div>
             <div class="d-flex align-items-center gap-3">
-              <div class="text-center">
+              <div class="text-center" ngbTooltip="Risk score 76-100: Immediate action required">
                 <span class="badge bg-danger fs-6">{{ threats.summary.critical }}</span>
                 <div class="small text-muted">Critical</div>
               </div>
-              <div class="text-center">
+              <div class="text-center" ngbTooltip="Risk score 51-75: Review promptly">
                 <span class="badge bg-warning text-dark fs-6">{{ threats.summary.high }}</span>
                 <div class="small text-muted">High</div>
               </div>
-              <div class="text-center">
+              <div class="text-center" ngbTooltip="Total emerging threats detected">
                 <span class="badge bg-secondary fs-6">{{ threats.summary.total }}</span>
                 <div class="small text-muted">Total</div>
               </div>
-              <a routerLink="/admin" class="btn btn-outline-warning">
+              <a routerLink="/admin" class="btn btn-outline-warning" ngbTooltip="Review and manage emerging threats in the Admin Console">
                 Review in Admin Console <i class="bi bi-arrow-right"></i>
               </a>
             </div>
@@ -130,7 +132,7 @@
       <!-- Critical Alerts Panel -->
       <div class="col-lg-4 mb-4">
         <div class="card h-100">
-          <div class="card-header bg-danger text-white">
+          <div class="card-header bg-danger text-white" ngbTooltip="Queries matching critical severity patterns - highest priority for investigation">
             <h5 class="mb-0">
               <i class="bi bi-exclamation-octagon me-2"></i>
               Critical Alerts
@@ -142,11 +144,11 @@
                 <div class="d-flex justify-content-between align-items-start">
                   <div>
                     <strong>{{ term.query }}</strong>
-                    <div class="small text-muted">
+                    <div class="small text-muted" ngbTooltip="Matched scam patterns">
                       {{ term.matchedPatterns.join(', ') }}
                     </div>
                   </div>
-                  <span class="badge bg-danger">{{ term.impressions | number }} imp</span>
+                  <span class="badge bg-danger" ngbTooltip="Total impressions in selected period">{{ term.impressions | number }} imp</span>
                 </div>
               </div>
             } @empty {
@@ -162,7 +164,7 @@
       <!-- New Terms Panel -->
       <div class="col-lg-4 mb-4">
         <div class="card h-100">
-          <div class="card-header bg-info text-white">
+          <div class="card-header bg-info text-white" ngbTooltip="Queries that appeared in the current period but not in the previous period">
             <h5 class="mb-0">
               <i class="bi bi-plus-circle me-2"></i>
               New Terms Detected
@@ -174,11 +176,11 @@
                 <div class="d-flex justify-content-between align-items-start">
                   <div>
                     <strong>{{ term.query }}</strong>
-                    <span class="badge ms-2" [ngClass]="getSeverityClass(term.severity)">
+                    <span class="badge ms-2" [ngClass]="getSeverityClass(term.severity)" ngbTooltip="Severity based on matched patterns">
                       {{ term.severity }}
                     </span>
                   </div>
-                  <span class="badge bg-secondary">{{ term.impressions | number }} imp</span>
+                  <span class="badge bg-secondary" ngbTooltip="Impressions since first detected">{{ term.impressions | number }} imp</span>
                 </div>
                 <div class="small text-muted">{{ term.matchedCategory }}</div>
               </div>
@@ -195,7 +197,7 @@
       <!-- Trending Terms Panel -->
       <div class="col-lg-4 mb-4">
         <div class="card h-100">
-          <div class="card-header bg-warning">
+          <div class="card-header bg-warning" ngbTooltip="Flagged queries with significant impression growth compared to previous period">
             <h5 class="mb-0">
               <i class="bi bi-graph-up me-2"></i>
               Trending Terms
@@ -212,7 +214,7 @@
                     </span>
                   </div>
                   <div class="text-end">
-                    <span class="badge bg-success">+{{ term.impressions | number }}</span>
+                    <span class="badge bg-success" ngbTooltip="Impression increase from previous period">+{{ term.impressions | number }}</span>
                   </div>
                 </div>
               </div>
@@ -233,7 +235,7 @@
         <div class="row align-items-center">
           <div class="col-md-4">
             <div class="input-group">
-              <span class="input-group-text">
+              <span class="input-group-text" ngbTooltip="Search by query text or pattern">
                 <i class="bi bi-search"></i>
               </span>
               <input
@@ -246,7 +248,8 @@
             </div>
           </div>
           <div class="col-md-2">
-            <select class="form-select" [ngModel]="severityFilter()" (ngModelChange)="onSeverityFilter($event)">
+            <select class="form-select" [ngModel]="severityFilter()" (ngModelChange)="onSeverityFilter($event)"
+                    ngbTooltip="Filter by severity level">
               <option value="all">All Severities</option>
               <option value="critical">Critical</option>
               <option value="high">High</option>
@@ -255,7 +258,8 @@
             </select>
           </div>
           <div class="col-md-2">
-            <select class="form-select" [ngModel]="statusFilter()" (ngModelChange)="onStatusFilter($event)">
+            <select class="form-select" [ngModel]="statusFilter()" (ngModelChange)="onStatusFilter($event)"
+                    ngbTooltip="Filter by review status">
               <option value="all">All Status</option>
               <option value="new">New</option>
               <option value="active">Active</option>
@@ -265,14 +269,14 @@
           </div>
           <div class="col-md-4 text-end">
             <div class="btn-group">
-              <button class="btn btn-outline-primary" (click)="exportCsv()">
+              <button class="btn btn-outline-primary" (click)="exportCsv()" ngbTooltip="Download flagged terms as CSV">
                 <i class="bi bi-file-earmark-spreadsheet me-1"></i> CSV
               </button>
-              <button class="btn btn-outline-primary" (click)="exportExcel()">
+              <button class="btn btn-outline-primary" (click)="exportExcel()" ngbTooltip="Download flagged terms as Excel">
                 <i class="bi bi-file-earmark-excel me-1"></i> Excel
               </button>
             </div>
-            <button class="btn btn-outline-secondary ms-2" (click)="loadDashboard()">
+            <button class="btn btn-outline-secondary ms-2" (click)="loadDashboard()" ngbTooltip="Refresh dashboard data">
               <i class="bi bi-arrow-clockwise"></i>
             </button>
           </div>
@@ -285,39 +289,39 @@
       <div class="card-header">
         <h5 class="mb-0">
           Flagged Terms
-          <span class="badge bg-secondary ms-2">{{ filteredTerms().length }}</span>
+          <span class="badge bg-secondary ms-2" ngbTooltip="Number of terms matching current filters">{{ filteredTerms().length }}</span>
         </h5>
       </div>
       <div class="table-responsive">
         <table class="table table-hover data-table mb-0">
           <thead>
             <tr>
-              <th (click)="onSort('query')" [class.sorted]="sortField() === 'query'">
+              <th (click)="onSort('query')" [class.sorted]="sortField() === 'query'" ngbTooltip="Search query from Google Search Console">
                 Query
                 <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-alpha-down' : 'bi-sort-alpha-up'"></i>
               </th>
-              <th (click)="onSort('severity')" [class.sorted]="sortField() === 'severity'">
+              <th (click)="onSort('severity')" [class.sorted]="sortField() === 'severity'" ngbTooltip="Severity based on matched scam patterns">
                 Severity
                 <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-down' : 'bi-sort-up'"></i>
               </th>
-              <th>Category</th>
-              <th (click)="onSort('impressions')" [class.sorted]="sortField() === 'impressions'">
+              <th ngbTooltip="Category of scam pattern that matched">Category</th>
+              <th (click)="onSort('impressions')" [class.sorted]="sortField() === 'impressions'" ngbTooltip="Number of times CRA pages were shown for this query">
                 Impressions
                 <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-up'"></i>
               </th>
-              <th (click)="onSort('clicks')" [class.sorted]="sortField() === 'clicks'">
+              <th (click)="onSort('clicks')" [class.sorted]="sortField() === 'clicks'" ngbTooltip="Number of clicks to CRA pages from this query">
                 Clicks
                 <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-up'"></i>
               </th>
-              <th (click)="onSort('ctr')" [class.sorted]="sortField() === 'ctr'">
+              <th (click)="onSort('ctr')" [class.sorted]="sortField() === 'ctr'" ngbTooltip="Click-through rate - low CTR at good position may indicate users clicking scam sites">
                 CTR
                 <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-up'"></i>
               </th>
-              <th (click)="onSort('position')" [class.sorted]="sortField() === 'position'">
+              <th (click)="onSort('position')" [class.sorted]="sortField() === 'position'" ngbTooltip="Average position in Google search results">
                 Position
                 <i class="bi sort-icon" [ngClass]="sortDirection() === 'asc' ? 'bi-sort-numeric-down' : 'bi-sort-numeric-up'"></i>
               </th>
-              <th>Status</th>
+              <th ngbTooltip="Review status of this flagged term">Status</th>
             </tr>
           </thead>
           <tbody>

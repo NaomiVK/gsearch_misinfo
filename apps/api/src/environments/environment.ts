@@ -16,10 +16,23 @@ export const environment = {
     ],
   },
 
+  // Search Console Query Limits
+  searchConsole: {
+    maxRows: 5000, // Maximum rows per query
+    minImpressions: 100, // Minimum impressions filter
+    maxDateRangeDays: 90, // Maximum date range
+  },
+
   // Scam Detection Settings
   scamDetection: {
     impressionThreshold: 500, // Minimum impressions to flag
     defaultDateRangeDays: 28, // Default analysis period
+  },
+
+  // Embedding Settings
+  embedding: {
+    similarityThreshold: 0.80, // Minimum cosine similarity to flag
+    model: 'text-embedding-3-large',
   },
 
   // Cache Settings (in seconds)
@@ -27,6 +40,8 @@ export const environment = {
     analyticsTtl: 3600, // 1 hour
     trendsTtl: 1800, // 30 minutes
     keywordsTtl: 300, // 5 minutes
+    embeddingsTtl: 86400, // 24 hours for seed phrase embeddings
+    benchmarksTtl: 3600, // 1 hour for CTR benchmarks
   },
 
   // CORS

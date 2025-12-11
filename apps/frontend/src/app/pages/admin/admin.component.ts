@@ -1,7 +1,7 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, TemplateRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NgbNavModule, NgbTooltipModule, NgbPaginationModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgbNavModule, NgbTooltipModule, NgbPaginationModule, NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 import { ApiService } from '../../services/api.service';
 import {
   EmergingThreat,
@@ -15,12 +15,15 @@ type CategoryKey = 'fakeExpiredBenefits' | 'illegitimatePaymentMethods' | 'threa
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgbNavModule, NgbTooltipModule, NgbPaginationModule],
+  imports: [CommonModule, FormsModule, NgbNavModule, NgbTooltipModule, NgbPaginationModule, NgbModalModule],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',
 })
 export class AdminComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly modalService = inject(NgbModal);
+
+  @ViewChild('categoryModal') categoryModal!: TemplateRef<unknown>;
 
   // Expose Math for template
   Math = Math;
@@ -33,9 +36,13 @@ export class AdminComponent implements OnInit {
   keywordsConfig = signal<ScamKeywordsConfig | null>(null);
   selectedDays = signal(7);
   currentPage = signal(1);
-  selectedCategory = signal('fakeExpiredBenefits');
+  selectedCategory = signal<CategoryKey>('fakeExpiredBenefits');
   newKeyword = signal('');
   newWhitelistPattern = signal('');
+
+  // Modal state
+  pendingThreat = signal<EmergingThreat | null>(null);
+  modalCategory = signal<CategoryKey>('fakeExpiredBenefits');
 
   ngOnInit(): void {
     this.loadEmergingThreats();
@@ -91,14 +98,28 @@ export class AdminComponent implements OnInit {
     }
   }
 
+  /**
+   * Open modal to select category before adding keyword
+   */
   addToKeywords(threat: EmergingThreat): void {
-    const category = this.promptCategory();
-    if (!category) return;
+    this.pendingThreat.set(threat);
+    this.modalCategory.set('fakeExpiredBenefits');
+    this.modalService.open(this.categoryModal, { centered: true });
+  }
 
-    this.api.addKeyword(threat.query, category).subscribe({
+  /**
+   * Confirm adding keyword with selected category
+   */
+  confirmAddKeyword(): void {
+    const threat = this.pendingThreat();
+    if (!threat) return;
+
+    this.api.addKeyword(threat.query, this.modalCategory()).subscribe({
       next: () => {
         this.loadKeywordsConfig();
         this.loadEmergingThreats();
+        this.modalService.dismissAll();
+        this.pendingThreat.set(null);
       },
       error: (err) => console.error('Failed to add keyword', err),
     });
@@ -119,22 +140,6 @@ export class AdminComponent implements OnInit {
       next: () => this.loadEmergingThreats(),
       error: (err) => console.error('Failed to dismiss', err),
     });
-  }
-
-  private promptCategory(): string | null {
-    const options = [
-      'fakeExpiredBenefits',
-      'illegitimatePaymentMethods',
-      'threatLanguage',
-      'suspiciousModifiers',
-    ];
-    const choice = prompt(
-      `Select category:\n1. Fake/Expired Benefits\n2. Illegitimate Payment Methods\n3. Threat Language\n4. Suspicious Modifiers\n\nEnter number (1-4):`
-    );
-    if (choice && ['1', '2', '3', '4'].includes(choice)) {
-      return options[parseInt(choice, 10) - 1];
-    }
-    return null;
   }
 
   addKeyword(): void {

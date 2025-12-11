@@ -91,16 +91,20 @@ export class SearchConsoleService implements OnModuleInit {
 
   /**
    * Fetch data with pagination support
+   * Respects maxRows limit from environment config
    */
   private async fetchWithPagination(
     query: SearchAnalyticsQuery,
     urlFilter: string
   ): Promise<SearchAnalyticsRow[]> {
     const allRows: SearchAnalyticsRow[] = [];
-    const rowLimit = query.rowLimit || 25000;
+    const maxRows = environment.searchConsole?.maxRows || 5000;
+    const rowLimit = Math.min(query.rowLimit || maxRows, maxRows);
     let startRow = 0;
 
-    while (true) {
+    while (allRows.length < rowLimit) {
+      const batchSize = Math.min(25000, rowLimit - allRows.length);
+
       const response = await this.searchConsole.searchanalytics.query({
         siteUrl: this.siteUrl,
         requestBody: {
@@ -119,7 +123,7 @@ export class SearchConsoleService implements OnModuleInit {
               ],
             },
           ],
-          rowLimit: Math.min(rowLimit, 25000),
+          rowLimit: batchSize,
           startRow,
         },
       });
@@ -137,10 +141,11 @@ export class SearchConsoleService implements OnModuleInit {
         }))
       );
 
-      if (rows.length < 25000) break;
-      startRow += 25000;
+      if (rows.length < batchSize) break;
+      startRow += batchSize;
     }
 
+    this.logger.debug(`Fetched ${allRows.length} rows for filter ${urlFilter} (max: ${rowLimit})`);
     return allRows;
   }
 
@@ -191,13 +196,18 @@ export class SearchConsoleService implements OnModuleInit {
 
   /**
    * Get queries with minimum impression threshold
+   * Uses searchConsole.minImpressions from config as default
    */
   async getQueriesAboveThreshold(
     dateRange: DateRange,
-    minImpressions: number = environment.scamDetection.impressionThreshold
+    minImpressions?: number
   ): Promise<SearchAnalyticsRow[]> {
+    const threshold = minImpressions ??
+      environment.searchConsole?.minImpressions ??
+      environment.scamDetection.impressionThreshold;
+
     const allData = await this.getAnalyticsForDateRange(dateRange);
-    return allData.filter((row) => row.impressions >= minImpressions);
+    return allData.filter((row) => row.impressions >= threshold);
   }
 
   /**
@@ -329,8 +339,8 @@ export class SearchConsoleService implements OnModuleInit {
 
         return benchmarks;
       },
-      // Cache for 24 hours - benchmarks don't need frequent updates
-      86400
+      // Use benchmarksTtl from config (default 1 hour)
+      environment.cache.benchmarksTtl || 3600
     );
   }
 }
